@@ -204,13 +204,13 @@ Agenstrix 是一个**多智能体 CLI 编排应用**（Web 端优先，桌面端
 ## Constraints
 
 - **License**: MIT —— 最大化生态接纳；不需要 BSL 1.1 那种保护（不打算商业 SaaS 化抗克隆）
-- **Tech stack — Backend**: TypeScript on **Bun 1.x** + Hono（HTTP）+ Drizzle ORM + `bun:sqlite` + `node-pty` —— Bun `--compile` 出单 binary 适配 Tauri sidecar；内置 SQLite/HTTP/WebSocket；AI 生态 TS-first
-- **Tech stack — Frontend**: **React 19** + Vite + Tailwind v4 + shadcn/ui + **react-flow**（拓扑）+ **xterm.js**（真终端）+ assistant-ui（聊天）+ react-i18next + react-dropzone（拖拽热区）
-- **Tech stack — Desktop (v2)**: **Tauri 2** —— Rust 壳子 < 1000 行只做系统集成（托盘 / 通知 / 深链接），Bun 进程作为 sidecar binary
+- **Tech stack — Backend**: TypeScript on **Bun 1.3.14+** + Hono（HTTP）+ Drizzle ORM `^0.45.2`（不要 1.0.0-rc）+ `drizzle-kit@^0.31.10` + `bun:sqlite` + **`Bun.Terminal`**（PTY，Bun 1.3.5 起 POSIX、1.3.14 起 Windows ConPTY）+ **`bun-pty`** 作为 FFI 兜底 + Biome 2.x（`@biomejs/biome@^2.4.15`）—— **不用** `node-pty`（在 Bun 下 NAPI 加载崩溃，维护者明确说不支持 Bun）；Bun `--compile` 出单 binary 适配 Tauri sidecar；内置 SQLite/HTTP/WebSocket；AI 生态 TS-first
+- **Tech stack — Frontend**: **React 19** + Vite + **Tailwind v4**（CSS-first，`@theme` 块 + `@tailwindcss/vite`，不用 `tailwind.config.js`）+ shadcn/ui（v4 模板需 `tw-animate-css`，不是 `tailwindcss-animate`）+ **`@xyflow/react`**（拓扑，react-flow 新包名）+ **`@xterm/xterm@^6`**（真终端，**不用**旧的 unscoped `xterm` 包）+ 9 个 @xterm 插件（fit / web-links / search / webgl / canvas / serialize / unicode11 / clipboard / attach）+ assistant-ui（聊天）+ react-i18next + react-dropzone（拖拽热区）
+- **Tech stack — Desktop (v2)**: **Tauri 2** —— Rust 壳子 < 1000 行只做系统集成（托盘 / 通知 / 深链接），Bun 进程作为 sidecar binary。打包配方：每平台跑 `bun build --compile --target=bun-<os>-<arch>`，产物按 `agenstrix-server-<rust-target-triple>(.exe)` 命名放到 `src-tauri/binaries/`，`tauri.conf.json` 声明 `externalBin`，调用用 `Command.sidecar(...).spawn()`（**不是** `.execute()`），capabilities JSON 显式允许 `shell:allow-spawn` + `sidecar: true`
 - **Tech stack — MCP**: `@modelcontextprotocol/sdk` 官方包 —— Agenstrix 自身既作为 MCP Server（给 Master 注入动作）也作为 MCP Client（连第三方 server 如 chrome-devtools-mcp）
 - **Tech stack — Lint/Test**: **Biome**（替代 ESLint + Prettier） + `bun:test` —— 速度与简洁
 - **包管理**: **Bun**（不用 pnpm / npm / yarn）—— 与 Runtime 统一
-- **跨平台**: macOS / Linux 主力，Windows v1 必须能跑（ConPTY + 路径短名兼容，抄 golutra 验证过的方案）
+- **跨平台**: macOS / Linux 主力，Windows v1 必须能跑（**最低 Windows 10 1809+**，ConPTY 必要；路径短名兼容抄 golutra 验证过的方案）。Phase 2 起 CI matrix 跑 Windows，因为 Bun.Terminal 的 Windows 通路 2026-05-13 才发布
 - **依赖原则**: 不依赖任何"如果上游公司挂了我就死"的第三方框架 —— 比如 Composio ao 虽好，不内嵌；只用 Anthropic 官方 `@modelcontextprotocol/sdk` 和 VS Code 同款 `node-pty` 这种基础设施级依赖
 - **零额外 API key**: Master 用用户现有 Claude 订阅（通过启动真 `claude` 命令实现），Worker 同理；无任何额外 API 注册门槛
 - **零配置文件原则**: workspace / service / 启动命令 / 端口 / 学到的知识 —— 全部存 SQLite，用户从不打开 yaml / JSON 编辑配置
@@ -244,6 +244,11 @@ Agenstrix 是一个**多智能体 CLI 编排应用**（Web 端优先，桌面端
 | **4 个内置 spells 模板直接抄 swarm-ide**（tree-executor / router-experts / map-reduce / critic-loop）| 已验证可行；省自己设计的成本；用户在使用中可加自定义模板 | — Pending |
 | Master 一次只支持一个 workspace（v1）；多 workspace 切换推到 v2 | YAGNI；先把单 workspace 做扎实 | — Pending |
 | Worker 完成后自动 commit 到 worker 分支并 `git worktree remove`（不自动 merge）| 安全：用户自行决定何时 merge；避免误操作 | — Pending |
+| **PTY 库 = `Bun.Terminal`（默认）+ `bun-pty`（FFI 兜底，藏在 `PtyHandle` interface 后面）—— 绝不用 `node-pty`** | research/STACK.md 发现 node-pty 在 Bun 下 NAPI 加载崩溃；Bun.Terminal Windows 通路 2026-05-13 才发，需 Phase 2 跨平台烟雾测试，失败时 5 行代码切到 bun-pty | — Pending |
+| **Drizzle ORM 钉到 `^0.45.2` 稳定线** | research/STACK.md 发现 1.0.0-rc 仍在每周破坏式更新；0.45.x 是 npm `latest` dist-tag | — Pending |
+| **xterm 用 `@xterm/xterm@^6`（scoped 包）** | research/STACK.md：unscoped `xterm` 是 5.x 死路；只有 scoped `@xterm/*` 是 v6 线 | — Pending |
+| **Tailwind v4 用 CSS-first（`@theme` + `@tailwindcss/vite`），shadcn/ui v4 模板用 `tw-animate-css`（不是 `tailwindcss-animate`）** | research/STACK.md：Tailwind v4 取消了 JS config 文件；shadcn/ui v4 配套依赖换名 | — Pending |
+| **MCP 桥接走 stdio bridge 子进程模式**（Master `claude` 通过 stdio 连回主 Bun 进程），HTTP transport 作为兜底设计 | research/ARCHITECTURE.md：Claude Code 只支持自己 spawn MCP server，需要中间桥接层；HTTP 兜底以防 stdio 跨版本不稳 | — Pending |
 
 ## Evolution
 
@@ -265,4 +270,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-17 after smart-workspace pivot*
+*Last updated: 2026-05-17 after research-driven stack corrections (PTY=Bun.Terminal, Drizzle pin, xterm scoped, Tailwind v4 CSS-first, Tauri sidecar recipe, MCP stdio bridge)*
