@@ -385,83 +385,95 @@ v1 版本所有可勾选需求。每条都有验收标准 + 来源引用。来�
 
 ## Traceability
 
-阶段映射在 roadmap 创建时填充。这里是空表，等 ROADMAP.md 出来后回填。
+阶段映射来自 ROADMAP.md（2026-05-17 创建）。
 
 | Requirement | Phase | Status |
 |---|---|---|
-| CORE-01 | TBD | Pending |
-| CORE-02 | TBD | Pending |
-| CORE-03 | TBD | Pending |
-| CORE-04 | TBD | Pending |
-| CORE-05 | TBD | Pending |
-| CORE-06 | TBD | Pending |
-| CORE-07 | TBD | Pending |
-| COST-01 | TBD | Pending |
-| COST-02 | TBD | Pending |
-| KILL-01 | TBD | Pending |
-| GIT-01 | TBD | Pending |
-| SEC-01 | TBD | Pending |
-| MCP-PURITY-01 | TBD | Pending |
-| WS-01 | TBD | Pending |
-| WS-02 | TBD | Pending |
-| WS-03 | TBD | Pending |
-| WS-04 | TBD | Pending |
-| WS-05 | TBD | Pending |
-| WS-06 | TBD | Pending |
-| WS-07 | TBD | Pending |
-| WS-08 | TBD | Pending |
-| WS-09 | TBD | Pending |
-| WS-DETECT-01 | TBD | Pending |
-| SVC-01 | TBD | Pending |
-| SVC-02 | TBD | Pending |
-| SVC-03 | TBD | Pending |
-| SVC-04 | TBD | Pending |
-| SVC-05 | TBD | Pending |
-| SVC-READY-01 | TBD | Pending |
-| PORT-ALLOC-01 | TBD | Pending |
-| UI-01 | TBD | Pending |
-| UI-02 | TBD | Pending |
-| UI-03 | TBD | Pending |
-| UI-04 | TBD | Pending |
-| UI-05 | TBD | Pending |
-| UI-06 | TBD | Pending |
-| UI-07 | TBD | Pending |
-| UI-08 | TBD | Pending |
-| UI-09 | TBD | Pending |
-| UI-10 | TBD | Pending |
-| UI-11 | TBD | Pending |
-| ASSET-01 | TBD | Pending |
-| ASSET-02 | TBD | Pending |
-| ASSET-03 | TBD | Pending |
-| ASSET-04 | TBD | Pending |
-| MCP-01 | TBD | Pending |
-| MCP-02 | TBD | Pending |
-| MCP-03 | TBD | Pending |
-| MCP-04 | TBD | Pending |
-| INFRA-01 | TBD | Pending |
-| INFRA-02 | TBD | Pending |
-| INFRA-03 | TBD | Pending |
-| INFRA-04 | TBD | Pending |
-| INFRA-05 | TBD | Pending |
-| INFRA-06 | TBD | Pending |
-| INFRA-07 | TBD | Pending |
-| DB-DURABILITY-01 | TBD | Pending |
-| MASTER-RESUME-01 | TBD | Pending |
-| WS-1011-01 | TBD | Pending |
-| ANSI-SPLITTER-01 | TBD | Pending |
-| WORKTREE-CWD-01 | TBD | Pending |
-| SETUP-01 | TBD | Pending |
-| SETUP-02 | TBD | Pending |
-| SETUP-03 | TBD | Pending |
-| SETUP-04 | TBD | Pending |
+| CORE-01 | Phase 1 | Pending |
+| CORE-02 | Phase 3 | Pending |
+| CORE-03 | Phase 4 | Pending |
+| CORE-04 | Phase 1 | Pending |
+| CORE-05 | Phase 1 | Pending |
+| CORE-06 | Phase 3 | Pending |
+| CORE-07 | Phase 4 | Pending |
+| COST-01 | Phase 5 | Pending |
+| COST-02 | Phase 3 | Pending |
+| KILL-01 | Phase 1 | Pending |
+| GIT-01 | Phase 1 | Pending |
+| SEC-01 | Phase 1 | Pending |
+| MCP-PURITY-01 | Phase 3 | Pending |
+| WS-01 | Phase 2 | Pending |
+| WS-02 | Phase 2 | Pending |
+| WS-03 | Phase 2 | Pending |
+| WS-04 | Phase 2 | Pending |
+| WS-05 | Phase 2 | Pending |
+| WS-06 | Phase 2 | Pending |
+| WS-07 | Phase 2 | Pending |
+| WS-08 | Phase 2 | Pending |
+| WS-09 | Phase 2 | Pending |
+| WS-DETECT-01 | Phase 2 | Pending |
+| SVC-01 | Phase 2 | Pending |
+| SVC-02 | Phase 2 | Pending |
+| SVC-03 | Phase 2 | Pending |
+| SVC-04 | Phase 2 | Pending |
+| SVC-05 | Phase 2 | Pending |
+| SVC-READY-01 | Phase 2 | Pending |
+| PORT-ALLOC-01 | Phase 2 | Pending |
+| UI-01 | Phase 4 | Pending |
+| UI-02 | Phase 4 | Pending |
+| UI-03 | Phase 3 | Pending |
+| UI-04 | Phase 3 | Pending |
+| UI-05 | Phase 3 | Pending |
+| UI-06 | Phase 5 | Pending |
+| UI-07 | Phase 5 | Pending |
+| UI-08 | Phase 5 | Pending |
+| UI-09 | Phase 5 | Pending |
+| UI-10 | Phase 5 | Pending |
+| UI-11 | Phase 2 | Pending |
+| ASSET-01 | Phase 5 | Pending |
+| ASSET-02 | Phase 5 | Pending |
+| ASSET-03 | Phase 5 | Pending |
+| ASSET-04 | Phase 5 | Pending |
+| MCP-01 | Phase 3 | Pending |
+| MCP-02 | Phase 4 | Pending |
+| MCP-03 | Phase 4 | Pending |
+| MCP-04 | Phase 4 | Pending |
+| INFRA-01 | Phase 5 | Pending |
+| INFRA-02 | Phase 1 | Pending |
+| INFRA-03 | Phase 1 | Pending |
+| INFRA-04 | Phase 1 | Pending |
+| INFRA-05 | Phase 1 | Pending |
+| INFRA-06 | Phase 1 | Pending |
+| INFRA-07 | Phase 1 | Pending |
+| DB-DURABILITY-01 | Phase 1 | Pending |
+| MASTER-RESUME-01 | Phase 3 | Pending |
+| WS-1011-01 | Phase 1 | Pending |
+| ANSI-SPLITTER-01 | Phase 1 | Pending |
+| WORKTREE-CWD-01 | Phase 1 | Pending |
+| SETUP-01 | Phase 1 | Pending |
+| SETUP-02 | Phase 2 | Pending |
+| SETUP-03 | Phase 5 | Pending |
+| SETUP-04 | Phase 5 | Pending |
 
 **Coverage:**
 
-- v1 requirements: **64 total**
-- Mapped to phases: 0 (待 ROADMAP.md 出来后回填)
-- Unmapped: 64 ⚠️ (正常 —— ROADMAP 还没生成)
+- v1 requirements: **65 total** (the prior "64 total" summary line was an off-by-one count; the canonical number is the table above)
+- Mapped to phases: **65 / 65 (100%)**
+- Unmapped: **0**
+- Duplicates: **0**
+
+**Distribution:**
+
+| Phase | Requirements | Count |
+|---|---|---|
+| Phase 1: First PTY Demo | CORE-01, CORE-04, CORE-05, KILL-01, GIT-01, SEC-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05, INFRA-06, INFRA-07, DB-DURABILITY-01, WS-1011-01, ANSI-SPLITTER-01, WORKTREE-CWD-01, SETUP-01 | 17 |
+| Phase 2: Smart Workspace Demo | WS-01, WS-02, WS-03, WS-04, WS-05, WS-06, WS-07, WS-08, WS-09, WS-DETECT-01, SVC-01, SVC-02, SVC-03, SVC-04, SVC-05, SVC-READY-01, PORT-ALLOC-01, UI-11, SETUP-02 | 19 |
+| Phase 3: Master + Worker Demo | CORE-02, CORE-06, MCP-01, MCP-PURITY-01, MASTER-RESUME-01, COST-02, UI-03, UI-04, UI-05 | 9 |
+| Phase 4: Topology + Multi-Worker Demo | CORE-03, CORE-07, UI-01, UI-02, MCP-02, MCP-03, MCP-04 | 7 |
+| Phase 5: Production Polish | COST-01, UI-06, UI-07, UI-08, UI-09, UI-10, ASSET-01, ASSET-02, ASSET-03, ASSET-04, INFRA-01, SETUP-03, SETUP-04 | 13 |
+| **Total** | | **65** |
 
 ---
 
 *Requirements defined: 2026-05-17*
-*Last updated: 2026-05-17 after merging PROJECT.md (34 reqs) + research SUMMARY (10 new reqs) + 6 honorable-mention hidden requirements*
+*Traceability filled: 2026-05-17 (ROADMAP.md creation)*
