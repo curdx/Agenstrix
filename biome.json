@@ -1,7 +1,13 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.4.15/schema.json",
   "files": {
-    "ignore": ["dist", "drizzle", "node_modules", "src-react/components/ui"]
+    "includes": [
+      "**",
+      "!dist/**",
+      "!drizzle/**",
+      "!node_modules/**",
+      "!src-react/components/ui/**"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -18,8 +24,12 @@
       }
     }
   },
-  "organizeImports": {
-    "enabled": true
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
   },
   "javascript": {
     "formatter": {
