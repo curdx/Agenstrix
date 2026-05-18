@@ -1,48 +1,52 @@
 /**
- * Structured logger using pino.
- * INFRA-05: daily-rotated log files at ~/.agenstrix/logs/agenstrix-YYYY-MM-DD.log
+ * Structured logger using pino (INFRA-05).
+ *
+ * Exports:
+ * - `logger`            — user-facing events; info+ to agenstrix-YYYY-MM-DD.log
+ * - `diagnosticsLogger` — internal traces; debug+ to diagnostics-YYYY-MM-DD.log
+ * - `flushLogger()`     — flush both streams (call on shutdown)
+ *
+ * Both loggers also mirror warn/error to stderr.
+ *
+ * Path resolution uses process.env.HOME so tests can override HOME to an isolated
+ * tmpdir before importing this module.
  */
 import pino from "pino";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import os from "node:os";
 
-const AGENSTRIX_HOME = join(os.homedir(), ".agenstrix");
-const LOGS_DIR = join(AGENSTRIX_HOME, "logs");
+function getLogsDir(): string {
+  const home = process.env.HOME ?? os.homedir();
+  return join(home, ".agenstrix", "logs");
+}
 
-// Ensure logs dir exists
+function getDailyLogPath(prefix: string): string {
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  return join(getLogsDir(), `${prefix}-${today}.log`);
+}
+
+// Ensure logs dir exists at module load time.
+// Re-evaluated lazily on first use via pino.destination so that if HOME
+// is overridden by a test, the destination still resolves correctly.
 try {
-  mkdirSync(LOGS_DIR, { recursive: true });
+  mkdirSync(getLogsDir(), { recursive: true });
 } catch {
   // Ignore if already exists
 }
 
-function getDailyLogPath(): string {
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-  return join(LOGS_DIR, `agenstrix-${today}.log`);
-}
-
-function getDailyDiagnosticsPath(): string {
-  const today = new Date().toISOString().slice(0, 10);
-  return join(LOGS_DIR, `diagnostics-${today}.log`);
-}
-
-const logger = pino(
-  {
-    level: "info",
-  },
+/**
+ * Main (user-facing) logger.
+ * - info+ writes to agenstrix-YYYY-MM-DD.log (daily rotation by filename)
+ * - warn+ mirrors to stderr
+ */
+export const logger = pino(
+  { level: "info" },
   pino.multistream([
-    // Main log file (daily rotation via date in filename)
     {
-      stream: pino.destination({ dest: getDailyLogPath(), sync: false }),
+      stream: pino.destination({ dest: getDailyLogPath("agenstrix"), sync: false }),
       level: "info",
     },
-    // Diagnostics log (debug level, separate file)
-    {
-      stream: pino.destination({ dest: getDailyDiagnosticsPath(), sync: false }),
-      level: "debug",
-    },
-    // Stderr mirror at warn level
     {
       stream: process.stderr,
       level: "warn",
@@ -50,18 +54,44 @@ const logger = pino(
   ])
 );
 
-export default logger;
+/**
+ * Diagnostics logger for internal traces.
+ * - debug+ writes to diagnostics-YYYY-MM-DD.log (daily rotation by filename)
+ * - warn+ mirrors to stderr
+ */
+export const diagnosticsLogger = pino(
+  { level: "debug" },
+  pino.multistream([
+    {
+      stream: pino.destination({ dest: getDailyLogPath("diagnostics"), sync: false }),
+      level: "debug",
+    },
+    {
+      stream: process.stderr,
+      level: "warn",
+    },
+  ])
+);
 
 /**
  * Flush all pino streams (call on shutdown).
  */
 export async function flushLogger(): Promise<void> {
   return new Promise((resolve) => {
+    let pending = 2;
+    const done = () => {
+      pending -= 1;
+      if (pending === 0) resolve();
+    };
     logger.flush((err) => {
-      if (err) {
-        // Best effort
-      }
-      resolve();
+      void err; // best effort
+      done();
+    });
+    diagnosticsLogger.flush((err) => {
+      void err; // best effort
+      done();
     });
   });
 }
+
+export default logger;
