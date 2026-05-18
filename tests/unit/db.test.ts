@@ -1,18 +1,32 @@
 /**
  * Unit test: initDb() creates DB, sets WAL, sets PRAGMAs, creates all 11 tables, makes backup.
  * RED: Expected to FAIL initially — no src-bun/db/index.ts exists yet.
+ *
+ * Isolation: uses its own HOME (`os.tmpdir()/agenstrix-db-test-XXX`) so it
+ * doesn't depend on the real ~/.agenstrix/ existing on a fresh CI runner, and
+ * doesn't get polluted by prior tests that may have left the DB singleton in
+ * a stale state.
  */
 
 import { Database } from "bun:sqlite";
-import { afterAll, expect, test } from "bun:test";
-import { existsSync } from "node:fs";
+import { afterAll, beforeAll, expect, test } from "bun:test";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { nanoid } from "nanoid";
 
-const HOME = os.homedir();
-const AGENSTRIX_HOME = path.join(HOME, ".agenstrix");
+const testHome = path.join(os.tmpdir(), `agenstrix-db-test-${nanoid()}`);
+let originalHome: string | undefined;
+
+const AGENSTRIX_HOME = path.join(testHome, ".agenstrix");
 const DB_PATH = path.join(AGENSTRIX_HOME, "store.db");
 const BACKUP_DIR = path.join(AGENSTRIX_HOME, "backups");
+
+beforeAll(() => {
+  mkdirSync(testHome, { recursive: true });
+  originalHome = process.env.HOME;
+  process.env.HOME = testHome;
+});
 
 const EXPECTED_TABLES = [
   "workers",
@@ -94,6 +108,10 @@ test("initDb() satisfies all DB-DURABILITY-01 requirements", async () => {
 }, 15000);
 
 afterAll(async () => {
-  // Cleanup: we don't delete the DB here as it's in the real home dir
-  // Just ensure any handles are closed
+  process.env.HOME = originalHome;
+  try {
+    rmSync(testHome, { recursive: true, force: true });
+  } catch {
+    // best effort
+  }
 });

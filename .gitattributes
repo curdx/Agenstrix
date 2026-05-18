@@ -1,0 +1,32 @@
+# Force LF line endings for text files across all platforms.
+# Biome 2.x rejects CRLF — and CRLF in shell scripts breaks bash on POSIX.
+# This is the standard cross-platform convention for Node/TS/Bun projects.
+* text=auto eol=lf
+
+# Explicit categories (defensive — overrides auto-detection mistakes):
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.json text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.sh text eol=lf
+*.sql text eol=lf
+
+# Binary files (never touched):
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+bun.lock binary
