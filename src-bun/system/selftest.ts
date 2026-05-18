@@ -7,15 +7,20 @@
  * - git CLI in PATH
  * - SQLite writable at ~/.agenstrix/
  * - Port available
+ * - Stale git locks (GIT-01 foundation)
+ * - Orphan worker processes (KILL-01 / SETUP-01)
  */
 import { which } from "bun";
 import { Database } from "bun:sqlite";
 import { join } from "node:path";
 import { mkdirSync, unlinkSync } from "node:fs";
 import os from "node:os";
+import type { StaleLock } from "./git-lock-scanner";
+import { scanGitLocks } from "./git-lock-scanner";
+import { isProcessAlive, readRunning } from "./running-file";
 
 export interface SelfTestWarning {
-  item: "claude" | "git" | "sqlite" | "port" | "bun-version";
+  item: "claude" | "git" | "sqlite" | "port" | "bun-version" | "git-lock" | "orphan-worker";
   message: string;
   fixMac: string;
   fixLinux: string;
@@ -30,6 +35,10 @@ export interface SelfTestResult {
   bunOk: boolean;
   criticalFailure: boolean; // true → backend exits before serving (D-12: SQLite not writable)
   warnings: SelfTestWarning[];
+  /** GIT-01 foundation: stale .git/index.lock files found at boot time */
+  staleGitLocks: StaleLock[];
+  /** Count of orphan worker processes detected from running.json */
+  orphanWorkers: number;
 }
 
 const MIN_BUN = [1, 3, 14];
@@ -116,6 +125,50 @@ export async function runSelfTest(port: number): Promise<SelfTestResult> {
     // Don't push a warning here — main.ts will handle the exit logic
   }
 
+  // GIT-01 foundation: scan process.cwd() for stale .git/index.lock files
+  // Phase 2+ will expand to all registered repos
+  let staleGitLocks: StaleLock[] = [];
+  try {
+    staleGitLocks = await scanGitLocks([process.cwd()]);
+    for (const lock of staleGitLocks) {
+      warnings.push({
+        item: "git-lock",
+        message: `Stale .git/index.lock found at ${lock.path} (${Math.round(lock.ageMs / 60_000)} min old)`,
+        fixMac: `rm ${lock.path}`,
+        fixLinux: `rm ${lock.path}`,
+        fixWindows: `del "${lock.path}"`,
+      });
+    }
+  } catch {
+    // Non-critical — continue boot even if git lock scan fails
+  }
+
+  // KILL-01 / SETUP-01: detect orphan workers from a previous crashed backend
+  // An "orphan" at boot time = a PID in running.json that is alive AND whose
+  // startedAt is before the current process start (i.e. belongs to a prior backend).
+  const currentProcessStart = Date.now();
+  let orphanWorkers = 0;
+  try {
+    const running = readRunning();
+    for (const entry of Object.values(running)) {
+      // PID is alive and the startedAt timestamp predates our boot (prior session)
+      if (isProcessAlive(entry.pid) && entry.startedAt < currentProcessStart) {
+        orphanWorkers++;
+      }
+    }
+    if (orphanWorkers > 0) {
+      warnings.push({
+        item: "orphan-worker",
+        message: `${orphanWorkers} orphan worker process(es) detected from a previous session`,
+        fixMac: "bunx agenstrix doctor --reap",
+        fixLinux: "bunx agenstrix doctor --reap",
+        fixWindows: "bunx agenstrix doctor --reap",
+      });
+    }
+  } catch {
+    // Non-critical — continue boot even if orphan check fails
+  }
+
   return {
     claudeFound,
     gitFound,
@@ -124,5 +177,7 @@ export async function runSelfTest(port: number): Promise<SelfTestResult> {
     bunOk,
     criticalFailure: !sqliteWritable, // D-12: SQLite unwritable → strict mode hard exit
     warnings,
+    staleGitLocks,
+    orphanWorkers,
   };
 }
