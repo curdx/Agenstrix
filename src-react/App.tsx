@@ -98,13 +98,23 @@ export function App() {
   async function handleSend(text: string) {
     if (!skeletonWorkerId) return;
     try {
-      await fetch(`/api/workers/${skeletonWorkerId}/input`, {
+      // CR-01: server validates `{ data: string }` (rest.ts:72). Field name must
+      // match the canonical wire contract used by the WS protocol — sending
+      // `{ text }` returned HTTP 400 silently.
+      const resp = await fetch(`/api/workers/${skeletonWorkerId}/input`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ data: text }),
       });
-    } catch {
-      // Ignore — terminal will show error via WS stream
+      if (!resp.ok) {
+        // Surface fetch failure so a broken pipe is visible during development
+        // instead of silently swallowed (CR-01 fix recommendation).
+        console.error(
+          `[chat] POST /api/workers/${skeletonWorkerId}/input failed: HTTP ${resp.status}`
+        );
+      }
+    } catch (err) {
+      console.error("[chat] sendInput network error", err);
     }
   }
 
