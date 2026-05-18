@@ -9,7 +9,7 @@
 
 ## Phases
 
-- [ ] **Phase 1: First PTY Demo** — 浏览器看到一个真的 `claude` 命令在 PTY 中实时跑（字节流双向，事件溯源已开始）
+- [x] **Phase 1: First PTY Demo** — 浏览器看到一个真的 `claude` 命令在 PTY 中实时跑（字节流双向，事件溯源已开始） (completed 2026-05-18)
 - [ ] **Phase 2: Smart Workspace Demo** — 拖两个文件夹进 UI → 自动识别 + 试启动 + 顶部条绿点
 - [ ] **Phase 3: Master + Worker Demo** — 用户跟真 `claude` Master 聊天，Master 通过 MCP 自己 spawn 一个 Worker 并在浏览器实时显示
 - [ ] **Phase 4: Topology + Multi-Worker Demo** — PROJECT.md 多 repo demo 剧本完整跑通（3 Worker 并行+依赖+service 自动启停+chrome-devtools-mcp 测试）
@@ -31,13 +31,13 @@
   4. 用户按 Ctrl+C / 关闭进程 → 后端 `claude` 及其子进程组一起被杀（5s SIGTERM → SIGKILL），不留孤儿；下次启动 `agenstrix doctor --reap` 能识别历史孤儿
   5. 启动时跑 self-test：检测 `which claude`、`which git`、SQLite 读写、默认端口；缺了任何一项给具体修复指令（含 brew / npm 命令）
   6. 在 macOS、Linux、Windows 10 1809+ 三平台 CI 上都能跑通烟雾测试（Windows ConPTY 通路确认；路径短名转换工作）
-**Plans:** 5/6 plans executed
+**Plans:** 6/6 plans complete
   - [x] 01-01-PLAN.md — Walking Skeleton: scaffold + DB + bus + PTY + Hono + chat shell + echo placeholder (Wave 1)
   - [x] 01-02-PLAN.md — Real claude PTY bridge + ANSI splitter + WS hardening (Wave 2)
   - [x] 01-03-PLAN.md — DB durability + backups + WAL PASSIVE + replay correctness (Wave 2)
   - [x] 01-04-PLAN.md — Kill-group + running.json + doctor --reap + git lock scanner + WORKTREE-CWD-01 (Wave 3)
   - [x] 01-05-PLAN.md — Secret redactor + spawn-env hard denylist (Wave 3)
-  - [ ] 01-06-PLAN.md — CI matrix (mac/linux/windows) + Windows short-path + README (Wave 4)
+  - [x] 01-06-PLAN.md — CI matrix (mac/linux/windows) + Windows short-path + README (Wave 4)
 **UI hint:** yes
 **Research-phase needed:** yes — Bun.Terminal Windows ConPTY 是 2026-05-13 才发的，需要早期验证；`bun-pty` FFI 兜底接线再次确认；ANSI 序列跨 chunk 切分边界 case 收集
 **Risk defenses landing here:**
@@ -131,7 +131,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. First PTY Demo | 5/6 | In Progress|  |
+| 1. First PTY Demo | 6/6 | Complete   | 2026-05-18 |
 | 2. Smart Workspace Demo | 0/? | Not started | - |
 | 3. Master + Worker Demo | 0/? | Not started | - |
 | 4. Topology + Multi-Worker Demo | 0/? | Not started | - |

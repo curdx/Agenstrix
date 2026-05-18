@@ -196,3 +196,64 @@ No new security-relevant surface introduced beyond the plan's threat model.
 - `bun test tests/smoke/` — 12 pass, 4 skip (Windows-only), 0 fail
 - `bunx tsc --noEmit` — pass
 - `bunx @biomejs/biome check` (my files only) — no errors
+
+## CI Verification (the actual gate Plan 01-06 was meant to clear)
+
+GitHub Actions run **#26020120914** — **all three OS green**:
+
+| OS | Result | Duration |
+|---|---|---|
+| `macos-latest` | ✓ pass | 61s |
+| `ubuntu-latest` | ✓ pass | 54s |
+| `windows-latest` | ✓ pass | 137s |
+
+Getting there from the initial push (run #26018629165) required **5
+follow-up commits** addressing cross-cutting issues that single-plan
+executors couldn't have caught — each fixed a CI gap and each was
+green after the next push:
+
+1. **`6250e75` — biome repo-wide lint** (Run 1 → 2): Per-plan executors
+   only validated their own scope (5–15 files), CI runs `biome check .`
+   across all 66 files → 50 errors across the merged tree. Applied
+   `--write` + `--write --unsafe` + 5 manual surgical fixes (selftest
+   destructure defaults replacing `!`, backups break guard replacing
+   `files.shift()!`, biome-ignore for ANSI ESC regex, exclude
+   `src-react/index.css` from Tailwind v4 `@theme` parse errors).
+
+2. **`f2eaec1` — hermetic db.test.ts + .gitattributes LF** (Run 2 → 3):
+   db.test.ts shared HOME with the runner, so on a fresh Ubuntu CI box
+   with no `~/.agenstrix/` pre-existing, `existsSync(DB_PATH)` after
+   `await initDb()` was racy with the `_db` singleton from prior
+   tests. Made it use its own `os.tmpdir()/agenstrix-db-test-<id>`.
+   Windows lint failed at 64 lines because git-for-windows converted
+   LF → CRLF on checkout (Biome 2.x rejects CRLF). Added
+   `.gitattributes` with `* text=auto eol=lf`.
+
+3. **`bfe61de` — path-traversal guard uses `path.sep`** (Run 3 → 4):
+   restoreBackup() rejected legitimate backups on Windows because the
+   guard hardcoded `${canonicalDir}/` — Windows `path.resolve()` returns
+   `\`. Switched to `canonicalDir + sep`.
+
+4. **`ecf6086` — Windows env essentials in PTY allowlist** (Run 4 → 5,
+   no impact): Hypothesized cmd.exe was silently failing due to missing
+   `SystemRoot`/`COMSPEC`/`PATHEXT`. Added 13 Windows-platform keys to
+   `ALLOWED_ENV_KEYS`. Defensive even if not the actual cause for run 4.
+
+5. **`e51a75f` — `detached: false` on Windows in Bun.spawn** (Run 5 →
+   6, **the actual root cause**): `detached: true` on Windows maps to
+   the `DETACHED_PROCESS` creation flag, which severs the ConPTY pipe.
+   The child spawned but its stdout never reached Bun.Terminal's data
+   callback — explaining all 4 Windows smoke test failures (cmd.exe
+   echo, cmd /c ver, cross-platform PTY echo, skeleton e2e all
+   receiving 0 bytes). POSIX keeps `detached: true` for setsid()/pgid;
+   Windows uses `detached: false` since ConPTY itself owns the
+   process group.
+
+**Verdict:** RESEARCH.md flagged Bun.Terminal Windows ConPTY as
+MEDIUM-confidence ("flag for Phase 1 smoke test on Windows. Backup
+plan: bun-pty"). It turned out Bun.Terminal ConPTY works correctly on
+Bun 1.3.14 — the bug was on the Agenstrix side (`detached: true`
+incompatibility), not in Bun. The bun-pty fallback path remains
+dormant per design.
+
+**Phase 1 cross-platform gate: CLEARED.**
