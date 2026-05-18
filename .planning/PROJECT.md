@@ -14,7 +14,31 @@ Agenstrix 是一个**多智能体 CLI 编排应用**（Web 端优先，桌面端
 
 <!-- Shipped and confirmed valuable. -->
 
-(None yet — ship to validate)
+#### Phase 1 — First PTY Demo (2026-05-18)
+
+The walking-skeleton vertical proves the entire backend + frontend + PTY +
+DB + WS/SSE + cross-platform CI stack works end-to-end. User can chat to a
+real `claude` running in a `Bun.Terminal` PTY, xterm renders the full
+ANSI TUI, refresh replays history from SQLite, and the three target
+platforms (macOS, Linux, Windows 10 1809+) all pass CI smoke tests
+including ConPTY byte re-encoding and short-path conversion.
+
+Validated requirement IDs:
+
+- **INFRA-02..07** — Bun + Drizzle/bun-sqlite + Hono(HTTP/WS/SSE) + Vite/Tailwind v4/shadcn + xterm.js + cross-platform CI
+- **DB-DURABILITY-01** — WAL + PASSIVE checkpoint + pre-migrate backups + replay ordering
+- **CORE-01** — Master runs in `Bun.Terminal` PTY (the same `claude` CLI users normally use)
+- **CORE-04** — Worker spawn supports `echo-skeleton` / `claude` / `codex` CLIs via PTY
+- **CORE-05** — SIGTERM → 5s → SIGKILL via POSIX `process.kill(-pgid)` group kill; Windows uses `process.kill(pid)` since ConPTY owns the group
+- **KILL-01** — Verified end-to-end by `kill-group.test.ts` cascading-child smoke
+- **GIT-01** — Stale `.git/index.lock` scanner foundation (Phase 2+ extends to multi-repo)
+- **SEC-01** — Four regex patterns (`sk-ant-`, `ghp_`, `sk-`, `AKIA[0-9A-Z]{16}`) redacted at single PTY choke point; spawn-env `HARD_DENYLIST` for 14 secret vars + 5 prefix patterns, always wins over user allowlist
+- **WS-1011-01** — Bun.serve `idleTimeout: 0` + 30s null-frame heartbeat verified by 35s-idle smoke test
+- **ANSI-SPLITTER-01** — VT500 state machine in `pty/batcher.ts`, 9/9 unit tests covering CSI/OSC/DCS chunk-boundary safety
+- **WORKTREE-CWD-01** — `realpath()` resolution + `GIT_DIR`/`GIT_WORK_TREE`/`GIT_INDEX_FILE` scrub in spawn env so worker processes don't inherit Agenstrix's worktree state
+- **SETUP-01** — Boot self-test reports `claude` / `git` / SQLite writable / port / orphan workers / stale git locks with platform-specific fix commands; `agenstrix doctor --reap` reclaims orphans
+
+GitHub Actions run #26026347855 — all three OS green (macOS 58s / Ubuntu 50s / Windows 138s).
 
 ### Active
 
@@ -270,4 +294,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-17 after research-driven stack corrections (PTY=Bun.Terminal, Drizzle pin, xterm scoped, Tailwind v4 CSS-first, Tauri sidecar recipe, MCP stdio bridge)*
+*Last updated: 2026-05-18 — Phase 1 (First PTY Demo) shipped: 17 requirement IDs validated, 3 OS green on GitHub Actions, real `claude` running in Bun.Terminal PTY end-to-end.*
