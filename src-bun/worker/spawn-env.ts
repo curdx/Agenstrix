@@ -11,8 +11,34 @@
  * Precedence: denylist WINS over allowlist (defense in depth — user cannot accidentally leak secrets).
  */
 
-/** The minimal set of env vars that PTY children always receive. */
-export const ALLOWED_ENV_KEYS: string[] = ["PATH", "HOME", "USER", "LANG", "SHELL", "TERM"];
+/** The minimal set of env vars that PTY children always receive.
+ *
+ * POSIX side: PATH, HOME, USER, LANG, SHELL, TERM is enough for `claude` / `codex` / shells.
+ *
+ * Windows side: cmd.exe / pwsh / claude.exe need additional fundamentals to even start.
+ * Without `SystemRoot`, cmd.exe cannot load DLLs from C:\Windows\System32 and produces
+ * zero output (silent failure). `COMSPEC` points to cmd.exe, `PATHEXT` is how Windows
+ * knows .exe/.cmd/.bat are executable, `TEMP`/`TMP` are required by many CLIs,
+ * `USERPROFILE` is the Windows equivalent of `HOME` (some tools probe both).
+ */
+const POSIX_ENV_KEYS = ["PATH", "HOME", "USER", "LANG", "SHELL", "TERM"];
+const WINDOWS_ENV_KEYS = [
+  "SystemRoot", // canonical Windows casing (used by cmd.exe / pwsh / claude.exe)
+  "SYSTEMROOT", // some runners normalize to uppercase
+  "COMSPEC",
+  "PATHEXT",
+  "TEMP",
+  "TMP",
+  "USERPROFILE",
+  "APPDATA",
+  "LOCALAPPDATA",
+  "USERNAME",
+  "WINDIR",
+  "PROCESSOR_ARCHITECTURE",
+  "NUMBER_OF_PROCESSORS",
+];
+export const ALLOWED_ENV_KEYS: string[] =
+  process.platform === "win32" ? [...POSIX_ENV_KEYS, ...WINDOWS_ENV_KEYS] : POSIX_ENV_KEYS;
 
 /**
  * Hard-coded set of specific key names that are NEVER forwarded to PTY children,
