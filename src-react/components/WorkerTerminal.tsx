@@ -96,8 +96,11 @@ export function WorkerTerminal({ workerId }: WorkerTerminalProps) {
     const openTerminalWhenReady = () => {
       if (opened) return;
       const w = container.clientWidth;
-      const h = container.clientHeight;
-      if (w < MIN_OPEN_WIDTH_PX || h < 20) return;
+      // Gate on width only — the container's height is 100% of its parent
+      // (`h-full`) and stays at 0 until xterm injects its own DOM. Requiring
+      // a non-zero clientHeight before mount creates a chicken-and-egg
+      // deadlock; the parent grid provides the actual height.
+      if (w < MIN_OPEN_WIDTH_PX) return;
       opened = true;
       term.open(container);
       fit.fit();
@@ -174,20 +177,30 @@ export function WorkerTerminal({ workerId }: WorkerTerminalProps) {
         // `onOpened` (set just below) will run the flush when
         // openTerminalWhenReady() finally succeeds.
         const flush = () => {
-          for (const b of historyBytes) term.write(b);
-          for (const chunk of pendingLive) term.write(chunk);
-          pendingLive.length = 0;
-          wsReady = true;
+          // Wrap in try/catch: under React 19 StrictMode the first mount's
+          // ws.onopen handler may still resolve its `await fetch(...)` AFTER
+          // the cleanup disposed this term. Writing/scrolling on a disposed
+          // term throws synchronously and bubbles as an "Uncaught (in promise)"
+          // since ws.onopen is async. The second mount's flush is the
+          // canonical one anyway.
+          try {
+            for (const b of historyBytes) term.write(b);
+            for (const chunk of pendingLive) term.write(chunk);
+            pendingLive.length = 0;
+            wsReady = true;
 
-          // Hide loading indicator
-          if (loadingTimer) {
-            clearTimeout(loadingTimer);
-            loadingTimer = null;
+            // Hide loading indicator
+            if (loadingTimer) {
+              clearTimeout(loadingTimer);
+              loadingTimer = null;
+            }
+            setIsLoading(false);
+
+            // Scroll to bottom (show latest content per D-07)
+            term.scrollToBottom();
+          } catch {
+            // Disposed during async history fetch — drop the flush silently.
           }
-          setIsLoading(false);
-
-          // Scroll to bottom (show latest content per D-07)
-          term.scrollToBottom();
         };
 
         if (opened) {
