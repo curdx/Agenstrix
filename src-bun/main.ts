@@ -20,7 +20,8 @@
 
 import { existsSync } from "node:fs";
 import { parseCli } from "./cli";
-import { AGENSTRIX_HOME, initDb, shutdownDb } from "./db/index";
+import { getAgenstrixHome } from "./db/backups";
+import { initDb, shutdownDb } from "./db/index";
 import gateway, { websocket } from "./gateway/index";
 import { setStartupInfo } from "./gateway/rest";
 import { publishSseEvent } from "./gateway/sse";
@@ -43,8 +44,14 @@ export async function startServer(opts: { port?: number } = {}): Promise<{
 }> {
   const port = opts.port ?? 3000;
 
+  // CR-03: resolve ~/.agenstrix lazily (at call time) so tests that override
+  // process.env.HOME for isolation see the redirected path here too. Previously
+  // this used a frozen module-load constant that could leak the developer's
+  // real home into the FATAL error message under test HOME overrides.
+  const home = getAgenstrixHome();
+
   // First-launch detection (D-15)
-  const firstLaunch = !existsSync(AGENSTRIX_HOME);
+  const firstLaunch = !existsSync(home);
 
   // Run self-test
   const selfTest = await runSelfTest(port);
@@ -57,7 +64,7 @@ export async function startServer(opts: { port?: number } = {}): Promise<{
   if (selfTest.criticalFailure) {
     const msg =
       `FATAL: ~/.agenstrix/ is not writable (SQLite cannot create store.db).\n` +
-      `Fix: ensure ${AGENSTRIX_HOME} exists and is writable.\n` +
+      `Fix: ensure ${home} exists and is writable.\n` +
       `  macOS/Linux: chmod u+w ~/.agenstrix\n` +
       `  Windows: check folder permissions in Explorer`;
     process.stderr.write(`${msg}\n`);

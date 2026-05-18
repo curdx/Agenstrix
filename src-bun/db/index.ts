@@ -16,10 +16,14 @@ import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import { backupBeforeMigrate, getAgenstrixHome, getDbPath } from "./backups";
 import * as schema from "./schema";
 
-// Re-export for backward compat (main.ts uses AGENSTRIX_HOME constant).
-// Note: since getAgenstrixHome() is lazy, this getter-based constant respects
-// process.env.HOME overrides used in tests.
-export const AGENSTRIX_HOME = getAgenstrixHome();
+// CR-03: An `export const AGENSTRIX_HOME = getAgenstrixHome()` was previously
+// declared here with a comment claiming it was a "getter-based constant that
+// respects test HOME overrides." It was not — `export const X = fn()` evaluates
+// fn() once at module load and freezes the result for the lifetime of the
+// process, so a later `process.env.HOME = tmpdir` in tests had no effect on the
+// constant. The constant has been removed; the sole consumer (main.ts) now
+// imports getAgenstrixHome() from ./backups and calls it at the point of use,
+// matching the lazy discipline already followed by getDbPath() / getBackupDir().
 
 let _db: ReturnType<typeof drizzle> | null = null;
 let _sqlite: Database | null = null;
