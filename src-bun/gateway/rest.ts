@@ -1,17 +1,21 @@
 /**
  * REST routes for Agenstrix.
  * - GET /healthz
+ * - GET /api/workers
  * - GET /api/workers/:id/chunks
  * - POST /api/workers/:id/input
- * - GET /api/workers
+ * - POST /api/selftest/recheck (INFRA-06: re-check button in SelfTestDialog)
  */
-import { Hono } from "hono";
+
 import { zValidator } from "@hono/zod-validator";
+import { Hono } from "hono";
 import { z } from "zod";
+import { eventsRepo } from "../db/repos/eventsRepo";
 import { ptyChunksRepo } from "../db/repos/ptyChunksRepo";
 import { workersRepo } from "../db/repos/workersRepo";
+import { runSelfTest, type SelfTestWarning } from "../system/selftest";
 import { sendToWorker } from "../worker/index";
-import type { SelfTestWarning } from "../system/selftest";
+import { publishSseEvent } from "./sse";
 
 // Store startup info for /healthz
 let _startupInfo: {
@@ -74,9 +78,26 @@ app.post(
   }
 );
 
-// POST /api/selftest/recheck — placeholder (Plan 02 wires)
-app.post("/api/selftest/recheck", (c) => {
-  return c.json({ ok: true, message: "Re-check not yet implemented — see Plan 02" }, 501);
+// POST /api/selftest/recheck — re-run self-test and broadcast result (INFRA-06)
+// Wires the "Re-check" button in SelfTestDialog (Plan 01-01 Task 3 Step 12)
+app.post("/api/selftest/recheck", async (c) => {
+  // Use port from startup info (store on setStartupInfo or use a sentinel port)
+  const result = await runSelfTest(0); // port=0: skip port check (already serving)
+  const event = {
+    type: "selftest.recompleted",
+    payload: {
+      claudeFound: result.claudeFound,
+      gitFound: result.gitFound,
+      sqliteWritable: result.sqliteWritable,
+      bunOk: result.bunOk,
+      warnings: result.warnings,
+    },
+  };
+  // Broadcast via SSE so UI can update banner
+  publishSseEvent(event);
+  // Persist to events table (INFRA-06)
+  await eventsRepo.append({ type: "selftest.recompleted", payload: event.payload });
+  return c.json({ ok: true, ...event.payload });
 });
 
 export { app as restApp };

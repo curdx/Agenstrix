@@ -7,11 +7,11 @@
  *   (d) GET /api/workers/<id>/chunks returns same bytes via REST
  *   (e) WS /ws/worker/<id> receives at least one binary frame within 2s
  *
- * RED: Expected to FAIL initially — no server or DB exists yet.
+ * Plan 02 update: D-01 may spawn `claude` as the auto-boot worker if claude is in PATH.
+ * This test explicitly spawns a second echo-skeleton worker to verify the skeleton path
+ * continues to work regardless of D-01 behavior.
  */
 import { test, expect, afterAll } from "bun:test";
-import os from "node:os";
-import path from "node:path";
 
 let stopFn: (() => Promise<void>) | null = null;
 
@@ -20,24 +20,38 @@ const TEST_PORT = 13101;
 test("skeleton echo e2e: DB row + bus event + pty_chunks + REST replay + WS frame", async () => {
   // These imports will fail until the modules are created — RED state
   const { startServer } = await import("../../src-bun/main");
+  const { spawnWorker } = await import("../../src-bun/worker/index");
   const { ptyChunksRepo } = await import("../../src-bun/db/repos/ptyChunksRepo");
 
-  const { port, stop, skeletonWorkerId } = await startServer({ port: TEST_PORT }) as {
+  const { port, stop } = await startServer({ port: TEST_PORT }) as {
     port: number;
     stop: () => Promise<void>;
     skeletonWorkerId: string;
   };
   stopFn = stop;
 
-  // (a) DB row: workers table has echo-skeleton
-  const workerResp = await fetch(`http://localhost:${port}/healthz`);
-  const info = await workerResp.json() as { skeletonWorkerId: string };
-  const workerId = skeletonWorkerId ?? info.skeletonWorkerId;
+  // D-01: Explicitly spawn an echo-skeleton worker (independent of auto-boot behavior)
+  // This tests the skeleton path explicitly with cli: "echo-skeleton" as the plan requires.
+  const { workerId } = await spawnWorker({
+    cli: "echo-skeleton",
+    cwd: process.cwd(),
+    envMode: "no-worktree",
+  });
+
   expect(typeof workerId).toBe("string");
   expect(workerId.length).toBeGreaterThan(0);
 
   // Give PTY time to emit the hello
   await new Promise(r => setTimeout(r, 1000));
+
+  // (a) DB row: workers table has echo-skeleton
+  // Verify via workers list API
+  const workersResp = await fetch(`http://localhost:${port}/api/workers`);
+  expect(workersResp.status).toBe(200);
+  const workers = await workersResp.json() as Array<{ id: string; cli: string }>;
+  const skeletonWorker = workers.find(w => w.id === workerId);
+  expect(skeletonWorker).toBeDefined();
+  expect(skeletonWorker?.cli).toBe("echo-skeleton");
 
   // (b) + (c) pty_chunks persisted with monotonic seq containing skeleton bytes
   const chunks = await ptyChunksRepo.listByWorker(workerId);

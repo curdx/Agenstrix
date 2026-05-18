@@ -1,6 +1,6 @@
 /**
- * WorkerSupervisor — Phase 1 minimal implementation.
- * Supports: cli="echo-skeleton" only (Plan 02 adds real `claude`).
+ * WorkerSupervisor — Phase 1 + Plan 02 implementation.
+ * Supports: cli="echo-skeleton" | "claude" | "codex".
  * Mode: no-worktree (direct cwd passthrough).
  * Phase 3+ adds: worktree create/merge/inherit, MCP injection, multi-worker.
  */
@@ -8,6 +8,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import { join } from "node:path";
+import { which } from "bun";
 import { nanoid } from "nanoid";
 import { bus } from "../bus/index";
 import { eventsRepo } from "../db/repos/eventsRepo";
@@ -85,7 +86,10 @@ function clearPid(workerId: string): void {
 }
 
 /**
- * Build argv for the skeleton echo PTY (placeholder for real claude in Plan 02).
+ * Resolve argv for a worker CLI.
+ * - "claude": resolves full path via which(); throws if not found (caller must guard with self-test)
+ * - "codex": resolves full path via which(); throws if not found
+ * - "echo-skeleton": bare shell echo + long sleep (D-04 placeholder for test/degraded mode)
  */
 function buildArgv(cli: WorkerSpec["cli"]): string[] {
   if (cli === "echo-skeleton") {
@@ -95,10 +99,21 @@ function buildArgv(cli: WorkerSpec["cli"]): string[] {
     return ["sh", "-c", "echo 'Hello from Agenstrix skeleton'; sleep 86400"];
   }
   if (cli === "claude") {
-    return ["claude"]; // Plan 02 uses this
+    // D-03: bare claude argv — no --print, no --mcp-config, no initial prompt
+    const claudeBin = which("claude");
+    if (!claudeBin) {
+      throw new Error(
+        "claude not found in PATH — spawnWorker(cli:'claude') called without self-test guard"
+      );
+    }
+    return [claudeBin]; // fully-resolved path; no flags (D-03)
   }
   if (cli === "codex") {
-    return ["codex"]; // v2
+    const codexBin = which("codex");
+    if (!codexBin) {
+      throw new Error("codex not found in PATH");
+    }
+    return [codexBin]; // v2
   }
   throw new Error(`Unknown CLI: ${cli}`);
 }
@@ -160,6 +175,8 @@ export async function spawnWorker(spec: WorkerSpec): Promise<{ workerId: string;
           type: "worker.exited",
           payload: { exitCode: code },
         });
+        // Broadcast via SSE so UI MessageCard can update status dot (Plan 02 — D-01)
+        bus.publish("sse.event", { type: "worker.exited", workerId, payload: { exitCode: code } });
       } catch {
         // Best effort
       }
