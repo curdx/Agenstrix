@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-05-18T03:05:36.762Z"
+last_updated: "2026-05-18T03:22:42.219Z"
 progress:
   total_phases: 5
   completed_phases: 0
@@ -28,15 +28,18 @@ This file is the **project memory**: a single-source-of-truth pointer to the cur
 - **Requirements doc:** `.planning/REQUIREMENTS.md` (65 v1 requirements, 100% mapped to phases)
 - **Roadmap doc:** `.planning/ROADMAP.md` (5 phases, vertical MVP)
 - **Research:** `.planning/research/SUMMARY.md` + `STACK.md` + `FEATURES.md` + `ARCHITECTURE.md` + `PITFALLS.md`
-- **Current focus:** Phase 1 — First PTY Demo (context gathered, awaiting plan)
+- **Current focus:** Phase 01 — first-pty-demo
 
 ---
 
 ## Current Position
 
+Phase: 01 (first-pty-demo) — EXECUTING
+Plan: 1 of 6
+
 - **Active phase:** Phase 1 — First PTY Demo (context gathered)
 - **Active plan:** None
-- **Status:** Ready to execute
+- **Status:** Executing Phase 01
 - **Resume file:** `.planning/phases/01-first-pty-demo/01-CONTEXT.md`
 - **Progress:** ▱▱▱▱▱ 0 / 5 phases complete
 
