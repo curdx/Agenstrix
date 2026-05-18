@@ -36,6 +36,7 @@ function formatUptime(ms: number): string {
 export function MessageCard({ workerId, label, pid, startedAt }: MessageCardProps) {
   const [uptimeMs, setUptimeMs] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [exitCode, setExitCode] = useState<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Uptime ticker (1s interval)
@@ -51,6 +52,37 @@ export function MessageCard({ workerId, label, pid, startedAt }: MessageCardProp
     };
   }, [startedAt]);
 
+  // SSE subscription: listen for worker.exited events (Plan 02 — D-01)
+  useEffect(() => {
+    const es = new EventSource("/sse/events");
+    const handleEvent = (evt: MessageEvent<string>) => {
+      try {
+        const parsed = JSON.parse(evt.data) as {
+          type?: string;
+          workerId?: string;
+          payload?: { exitCode?: number };
+        };
+        if (parsed.type === "worker.exited" && parsed.workerId === workerId) {
+          setExitCode(parsed.payload?.exitCode ?? null);
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+        }
+      } catch {
+        // Ignore malformed SSE payloads
+      }
+    };
+    es.addEventListener("event", handleEvent);
+    return () => {
+      es.removeEventListener("event", handleEvent);
+      es.close();
+    };
+  }, [workerId]);
+
+  // D-01: use label prop as-is (caller sets "Master Claude" for the master worker)
+  const displayLabel = label;
+
   return (
     <Card
       className={cn(
@@ -61,12 +93,20 @@ export function MessageCard({ workerId, label, pid, startedAt }: MessageCardProp
     >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 py-2 px-4 border-b border-border/50">
         <div className="flex items-center gap-2">
-          {/* Status dot — green when running */}
-          <div className="size-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-sm font-medium">{label}</span>
+          {/* Status dot — green when running, gray when exited */}
+          <div
+            className={cn(
+              "size-2 rounded-full",
+              exitCode !== null ? "bg-gray-400" : "bg-green-500 animate-pulse"
+            )}
+          />
+          <span className="text-sm font-medium">{displayLabel}</span>
           {pid !== undefined && <span className="text-xs text-muted-foreground">PID {pid}</span>}
-          {startedAt !== undefined && (
+          {startedAt !== undefined && exitCode === null && (
             <span className="text-xs text-muted-foreground">{formatUptime(uptimeMs)}</span>
+          )}
+          {exitCode !== null && (
+            <span className="text-xs text-muted-foreground">Exited with code {exitCode}</span>
           )}
         </div>
 

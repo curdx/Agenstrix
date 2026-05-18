@@ -78,21 +78,25 @@ test(
     expect(hasAnsi).toBe(true);
 
     // Send Ctrl+D to cause claude to exit
+    // Send twice to be safe (some TUI apps need 2x Ctrl+D to confirm exit)
+    sendToWorker(workerId, "\x04");
+    await new Promise((r) => setTimeout(r, 500));
     sendToWorker(workerId, "\x04");
 
-    // Wait up to 5s for worker.exited event in events table
-    const exitDeadline = Date.now() + 5_000;
+    // Wait up to 15s for worker.exited event in events table
+    // claude may take several seconds to process Ctrl+D and exit cleanly
+    const exitDeadline = Date.now() + 15_000;
     let exitedEventFound = false;
     while (Date.now() < exitDeadline && !exitedEventFound) {
       const events = await eventsRepo.listByWorker(workerId);
       exitedEventFound = events.some((e) => e.type === "worker.exited");
       if (!exitedEventFound) {
-        await new Promise((r) => setTimeout(r, 300));
+        await new Promise((r) => setTimeout(r, 500));
       }
     }
     expect(exitedEventFound).toBe(true);
   },
-  30_000
+  45_000
 );
 
 afterAll(async () => {

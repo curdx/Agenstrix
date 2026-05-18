@@ -1,7 +1,7 @@
 /**
  * Agenstrix boot sequence.
  *
- * Flow (per D-10/11/12/13/14/15/16):
+ * Flow (per D-01/D-10/11/12/13/14/15/16):
  * 1. parseCli(Bun.argv)
  * 2. If first launch, log "Created ~/.agenstrix/ (database + logs)"
  * 3. If doctor command, call reap() then exit
@@ -9,7 +9,7 @@
  * 5. criticalFailure (SQLite unwritable) → print fix + exit(1) — D-12
  * 6. portAvailable=false → print --port hint + exit(1) — D-14
  * 7. initDb() — create DB with WAL, backup, migrate
- * 8. spawnWorker(echo-skeleton) — D-04 placeholder
+ * 8. D-01: if claudeFound → spawnWorker(claude); else → spawnWorker(echo-skeleton) + banner
  * 9. Bun.serve({ port, fetch, websocket, idleTimeout: 0 })
  * 10. openBrowser(url) — D-16
  * 11. Broadcast self-test warnings via SSE — D-10
@@ -17,18 +17,18 @@
  *
  * Exports startServer({ port? }) for tests.
  */
+
+import { existsSync } from "node:fs";
 import { parseCli } from "./cli";
-import { initDb, shutdownDb, AGENSTRIX_HOME } from "./db/index";
-import { spawnWorker, killWorker, listWorkers } from "./worker/index";
-import { runSelfTest } from "./system/selftest";
-import { reap } from "./system/doctor";
-import { openBrowser } from "./system/browser";
-import { flushLogger } from "./system/logger";
+import { AGENSTRIX_HOME, initDb, shutdownDb } from "./db/index";
+import gateway, { websocket } from "./gateway/index";
 import { setStartupInfo } from "./gateway/rest";
 import { publishSseEvent } from "./gateway/sse";
-import gateway, { websocket } from "./gateway/index";
-import { existsSync } from "node:fs";
-import logger from "./system/logger";
+import { openBrowser } from "./system/browser";
+import { reap } from "./system/doctor";
+import logger, { flushLogger } from "./system/logger";
+import { runSelfTest } from "./system/selftest";
+import { killWorker, listWorkers, spawnWorker } from "./worker/index";
 
 let _server: ReturnType<typeof Bun.serve> | null = null;
 let _skeletonWorkerId: string | null = null;
@@ -76,13 +76,29 @@ export async function startServer(opts: { port?: number } = {}): Promise<{
   // Initialize database
   await initDb();
 
-  // Spawn skeleton echo worker (D-04: single worker placeholder)
-  // Use nanoid for unique ID so tests don't collide with prior DB entries
-  const { workerId } = await spawnWorker({
-    cli: "echo-skeleton",
-    cwd: process.cwd(),
-    envMode: "no-worktree",
-  });
+  // D-01: Auto-spawn real `claude` if self-test detected it; fall back to echo-skeleton.
+  // D-03: Bare `claude` argv — no flags (MCP injection deferred to Phase 3).
+  // D-04: Single-Worker prototype; the first worker IS the master.
+  let workerId: string;
+  if (selfTest.claudeFound) {
+    const result = await spawnWorker({
+      // No explicit id: nanoid() auto-assigns a unique ID each boot (avoids DB UNIQUE violations in tests)
+      cli: "claude",
+      cwd: process.cwd(),
+      envMode: "no-worktree",
+    });
+    workerId = result.workerId;
+    logger.info({ workerId }, "D-01: real claude spawned on boot");
+  } else {
+    // Claude not found — degrade gracefully; UI will show warning banner (D-10)
+    logger.warn("D-01: claude not in PATH — degraded start with echo-skeleton");
+    const result = await spawnWorker({
+      cli: "echo-skeleton",
+      cwd: process.cwd(),
+      envMode: "no-worktree",
+    });
+    workerId = result.workerId;
+  }
   _skeletonWorkerId = workerId;
 
   // Set startup info for /healthz response
@@ -103,7 +119,8 @@ export async function startServer(opts: { port?: number } = {}): Promise<{
 
   _server = server;
 
-  logger.info({ port, workerId }, "Agenstrix started");
+  const workerCli = selfTest.claudeFound ? "claude" : "echo-skeleton";
+  logger.info({ port, workerId, cli: workerCli }, "Agenstrix started");
   console.log(`Agenstrix backend listening on http://localhost:${port}`);
 
   // Broadcast self-test warnings via SSE so UI banner can show them (D-10)
@@ -193,7 +210,7 @@ if (import.meta.main) {
     // Auto-open browser (D-16) — fire and forget, silent on SSH/headless
     openBrowser(`http://localhost:${port}`);
 
-    logger.info({ skeletonWorkerId }, "Skeleton worker started — waiting for connections");
+    logger.info({ skeletonWorkerId }, "Worker started — waiting for connections");
   } catch (err) {
     console.error("Failed to start Agenstrix:", err);
     process.exit(1);
