@@ -12,9 +12,9 @@
  */
 import { Database } from "bun:sqlite";
 import { mkdirSync, unlinkSync } from "node:fs";
-import os from "node:os";
 import { join } from "node:path";
 import { which } from "bun";
+import { getAgenstrixHome } from "../db/backups";
 import type { StaleLock } from "./git-lock-scanner";
 import { scanGitLocks } from "./git-lock-scanner";
 import { isProcessAlive, readRunning } from "./running-file";
@@ -96,10 +96,15 @@ export async function runSelfTest(port: number): Promise<SelfTestResult> {
   }
 
   // Check SQLite writable (critical — D-12)
-  const testPath = join(os.homedir(), ".agenstrix", "__selftest.db");
+  // CR-04: use the project-wide HOME-aware helper so unit/smoke tests that
+  // override process.env.HOME for isolation are honored. Previously this
+  // called os.homedir() directly, which bypassed the override and polluted
+  // the developer's real ~/.agenstrix/ with __selftest.db on every test run.
+  const home = getAgenstrixHome();
+  const testPath = join(home, "__selftest.db");
   let sqliteWritable = false;
   try {
-    mkdirSync(join(os.homedir(), ".agenstrix"), { recursive: true });
+    mkdirSync(home, { recursive: true });
     const db = new Database(testPath, { create: true });
     db.exec("CREATE TABLE IF NOT EXISTS _t (v TEXT)");
     db.exec("INSERT INTO _t VALUES ('ok')");
