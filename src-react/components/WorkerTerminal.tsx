@@ -80,9 +80,35 @@ export function WorkerTerminal({ workerId }: WorkerTerminalProps) {
       }
     }
 
-    // Open terminal — container MUST be visible (Landmine #5)
-    term.open(container);
-    fit.fit();
+    // Defer term.open() until the container actually has a real width.
+    // Under React 19 StrictMode the first effect run can fire before CSS
+    // layout has finalized — clientWidth can be ~0 or single-digit pixels,
+    // FitAddon would then compute cols≈3 and pin xterm to a narrow strip
+    // that ResizeObserver re-fits CANNOT visually repair after content has
+    // already been written into the cramped grid (Landmine #5 / Pitfall 3
+    // generalized: visible-but-not-yet-sized parents).
+    //
+    // Minimum container width threshold below which we refuse to call open():
+    const MIN_OPEN_WIDTH_PX = 100;
+
+    let opened = false; // tracks whether term.open() has run
+    let onOpened: (() => void) | null = null; // wired below to flush pending bytes
+    const openTerminalWhenReady = () => {
+      if (opened) return;
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      if (w < MIN_OPEN_WIDTH_PX || h < 20) return;
+      opened = true;
+      term.open(container);
+      fit.fit();
+      // Notify server-side PTY of the actually-sized cols/rows so the very
+      // first claude TUI repaint matches the renderer grid (the 100ms
+      // timeout that used to live here was racy under StrictMode).
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }));
+      }
+      onOpened?.();
+    };
 
     // ── History replay + live stream (D-07: WeChat-style) ──────────────────
     let wsReady = false;
@@ -104,14 +130,31 @@ export function WorkerTerminal({ workerId }: WorkerTerminalProps) {
       const chunk = new Uint8Array(data);
       if (chunk.length === 0) return; // heartbeat null frame — ignore
 
-      if (!wsReady) {
+      // Buffer if either (a) WS not finished with history replay yet, or
+      // (b) xterm hasn't been opened (container size not finalized) — writing
+      // to a terminal that hasn't called open() drops content into a 0-size
+      // buffer that the eventual renderer can't reformat.
+      if (!wsReady || !opened) {
         pendingLive.push(chunk);
         return;
       }
       term.write(chunk);
     };
 
+    // Tries to open the terminal NOW (if container is already sized) so the
+    // initial resize frame races with WS handshake — but is safe to call
+    // before any size is available; the ResizeObserver below picks it up.
+    openTerminalWhenReady();
+
     ws.onopen = async () => {
+      // Notify server-side PTY of cols/rows the instant the socket is up,
+      // if the terminal has already been opened. If not, openTerminalWhenReady
+      // will send the resize once it runs.
+      if (opened) {
+        ws.send(JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }));
+      }
+
+      let historyBytes: Uint8Array[] = [];
       try {
         // Fetch full history via REST (D-07: one-shot HTTP GET)
         const resp = await fetch(`/api/workers/${workerId}/chunks`);
@@ -119,31 +162,39 @@ export function WorkerTerminal({ workerId }: WorkerTerminalProps) {
           const chunks = (await resp.json()) as Array<{ bytes: string; seq: number }>;
           // Sort by seq just in case (should already be ordered)
           chunks.sort((a, b) => a.seq - b.seq);
-          for (const c of chunks) {
-            // bytes stored as base64 BLOB
-            const bytes = Uint8Array.from(atob(c.bytes), (ch) => ch.charCodeAt(0));
-            term.write(bytes);
-          }
+          historyBytes = chunks.map((c) =>
+            Uint8Array.from(atob(c.bytes), (ch) => ch.charCodeAt(0))
+          );
         }
       } catch {
         // Ignore history fetch failure — live stream continues
       } finally {
-        // Flush live chunks buffered during history load
-        for (const chunk of pendingLive) {
-          term.write(chunk);
-        }
-        pendingLive.length = 0;
-        wsReady = true;
+        // Defer all writes until the terminal has been opened with a real
+        // size. If `opened` is already true we flush immediately; otherwise
+        // `onOpened` (set just below) will run the flush when
+        // openTerminalWhenReady() finally succeeds.
+        const flush = () => {
+          for (const b of historyBytes) term.write(b);
+          for (const chunk of pendingLive) term.write(chunk);
+          pendingLive.length = 0;
+          wsReady = true;
 
-        // Hide loading indicator
-        if (loadingTimer) {
-          clearTimeout(loadingTimer);
-          loadingTimer = null;
-        }
-        setIsLoading(false);
+          // Hide loading indicator
+          if (loadingTimer) {
+            clearTimeout(loadingTimer);
+            loadingTimer = null;
+          }
+          setIsLoading(false);
 
-        // Scroll to bottom (show latest content per D-07)
-        term.scrollToBottom();
+          // Scroll to bottom (show latest content per D-07)
+          term.scrollToBottom();
+        };
+
+        if (opened) {
+          flush();
+        } else {
+          onOpened = flush;
+        }
       }
     };
 
@@ -162,8 +213,13 @@ export function WorkerTerminal({ workerId }: WorkerTerminalProps) {
       }
     });
 
-    // Resize observer — fit terminal + notify server
+    // Resize observer — open on first measurable size, then re-fit + notify
+    // server on subsequent resizes.
     const ro = new ResizeObserver(() => {
+      if (!opened) {
+        openTerminalWhenReady();
+        return;
+      }
       fit.fit();
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }));
@@ -171,13 +227,18 @@ export function WorkerTerminal({ workerId }: WorkerTerminalProps) {
     });
     ro.observe(container);
 
-    // Initial size notification
-    setTimeout(() => {
-      fit.fit();
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }));
+    // Belt-and-suspenders rAF chain: some browsers don't fire ResizeObserver
+    // for the initial layout if the element was 0×0 on mount and only grew
+    // due to its parent's flexbox measurement — poll for up to ~5 frames.
+    let rafTries = 0;
+    const rafTick = () => {
+      if (opened) return;
+      openTerminalWhenReady();
+      if (!opened && rafTries++ < 5) {
+        requestAnimationFrame(rafTick);
       }
-    }, 100);
+    };
+    requestAnimationFrame(rafTick);
 
     // Cleanup
     return () => {
