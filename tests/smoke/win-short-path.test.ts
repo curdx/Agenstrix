@@ -15,10 +15,10 @@
  *     the current codepage, the spawn silently uses the wrong cwd or fails.
  * Conversion to 8.3 short names (always ASCII) sidesteps this entirely.
  */
-import { test, expect } from "bun:test";
-import { mkdtempSync, rmdirSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { expect, test } from "bun:test";
+import { existsSync, mkdtempSync, rmdirSync } from "node:fs";
 import os from "node:os";
+import { join } from "node:path";
 import { getWindowsShortPath } from "../../src-bun/system/win-short-path";
 
 const IS_WINDOWS = process.platform === "win32";
@@ -40,7 +40,8 @@ test.skipIf(!IS_WINDOWS)(
     try {
       const shortPath = getWindowsShortPath(tmpdir);
 
-      // Result must be ASCII-only
+      // Result must be ASCII-only: no char code above 127
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: intentional ASCII range check
       expect(/^[\x00-\x7F]+$/.test(shortPath)).toBe(true);
 
       // Result must still be a valid, existing path
@@ -66,11 +67,8 @@ test.skipIf(!IS_WINDOWS)(
   }
 );
 
-test.skipIf(IS_WINDOWS)(
-  "getWindowsShortPath: no-op on POSIX (returns input unchanged)",
-  () => {
-    const posixPath = "/tmp/agenstrix-测试";
-    const result = getWindowsShortPath(posixPath);
-    expect(result).toBe(posixPath);
-  }
-);
+test.skipIf(IS_WINDOWS)("getWindowsShortPath: no-op on POSIX (returns input unchanged)", () => {
+  const posixPath = "/tmp/agenstrix-测试";
+  const result = getWindowsShortPath(posixPath);
+  expect(result).toBe(posixPath);
+});

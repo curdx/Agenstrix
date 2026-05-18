@@ -15,10 +15,10 @@
  * This test CANNOT be validated locally on macOS — it will be (skipped) here
  * and exercised by the CI windows-latest runner.
  */
-import { test, expect, afterAll } from "bun:test";
+import { afterAll, expect, test } from "bun:test";
 import { startServer } from "../../src-bun/main";
-import { spawnWorker, killWorker } from "../../src-bun/worker/index";
 import { isProcessAlive } from "../../src-bun/system/running-file";
+import { killWorker, spawnWorker } from "../../src-bun/worker/index";
 
 const IS_WINDOWS = process.platform === "win32";
 
@@ -101,24 +101,14 @@ test.skipIf(!IS_WINDOWS)(
     const { bus } = await import("../../src-bun/bus/index");
 
     const collected: Uint8Array[] = [];
-    let error: Error | null = null;
 
-    let workerId: string;
-    let pid: number;
+    // Spawn must not throw — use direct await (test will fail if it throws)
+    const { workerId } = await spawnWorker({
+      cli: "echo-skeleton",
+      _testArgvOverride: ["cmd.exe", "/c", "ver & timeout /t 5 /nobreak >NUL"],
+    });
 
-    try {
-      ({ workerId, pid } = await spawnWorker({
-        cli: "echo-skeleton",
-        _testArgvOverride: ["cmd.exe", "/c", "ver & timeout /t 5 /nobreak >NUL"],
-      }));
-    } catch (e) {
-      error = e as Error;
-    }
-
-    // No exception during spawn
-    expect(error).toBeNull();
-
-    const unsubscribe = bus.subscribe(`worker.output.${workerId!}`, (chunk: unknown) => {
+    const unsubscribe = bus.subscribe(`worker.output.${workerId}`, (chunk: unknown) => {
       if (chunk instanceof Uint8Array) {
         collected.push(chunk);
       } else if (chunk instanceof Buffer) {
@@ -141,7 +131,7 @@ test.skipIf(!IS_WINDOWS)(
     // "ver" outputs something like "Microsoft Windows [Version 10.0.xxxxx]"
     expect(text.toLowerCase()).toContain("microsoft");
 
-    await killWorker(workerId!, false);
+    await killWorker(workerId, false);
   },
   20_000
 );

@@ -20,7 +20,9 @@ import { execSync } from "node:child_process";
  */
 export function getWindowsShortPath(longPath: string): string {
   if (process.platform !== "win32") return longPath;
-  if (/^[\x00-\x7F]+$/.test(longPath)) return longPath; // ASCII-only: no conversion needed
+  // ASCII-only fast path: every char code <= 127 means no non-ASCII chars
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: intentional ASCII range check
+  if (/^[\x00-\x7F]+$/.test(longPath)) return longPath;
   try {
     // cmd.exe trick: `for %i in ("path") do @echo %~si` prints the short name
     // Escape double-quotes in path; PowerShell or special chars not supported in Phase 1
