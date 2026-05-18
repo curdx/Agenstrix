@@ -10,11 +10,11 @@
  * - Stale git locks (GIT-01 foundation)
  * - Orphan worker processes (KILL-01 / SETUP-01)
  */
-import { which } from "bun";
 import { Database } from "bun:sqlite";
-import { join } from "node:path";
 import { mkdirSync, unlinkSync } from "node:fs";
 import os from "node:os";
+import { join } from "node:path";
+import { which } from "bun";
 import type { StaleLock } from "./git-lock-scanner";
 import { scanGitLocks } from "./git-lock-scanner";
 import { isProcessAlive, readRunning } from "./running-file";

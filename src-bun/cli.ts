@@ -42,7 +42,7 @@ export function parseCli(argv: string[]): CliArgs {
     } else if (arg === "--port" && i + 1 < args.length) {
       const portStr = args[i + 1];
       const parsed = portStr ? parseInt(portStr, 10) : NaN;
-      if (!isNaN(parsed) && parsed > 0 && parsed < 65536) {
+      if (!Number.isNaN(parsed) && parsed > 0 && parsed < 65536) {
         port = parsed;
         i++; // Skip the port value
       } else {

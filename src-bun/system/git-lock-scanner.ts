@@ -49,7 +49,6 @@ export async function scanGitLocks(repoPaths: string[]): Promise<StaleLock[]> {
       }
     } catch {
       // Missing .git dir, permission error, etc. — skip silently
-      continue;
     }
   }
 

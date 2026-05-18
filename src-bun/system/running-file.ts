@@ -53,7 +53,7 @@ export function readRunning(): Record<string, RunningEntry> {
  */
 export function writeRunning(state: Record<string, RunningEntry>): void {
   const path = RUNNING_FILE_PATH();
-  const tmpPath = path + ".tmp";
+  const tmpPath = `${path}.tmp`;
 
   // Ensure ~/.agenstrix/ exists
   const dir = join(process.env.HOME ?? os.homedir(), ".agenstrix");
