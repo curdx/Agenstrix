@@ -3,7 +3,7 @@
  * Phase 1: always uses process.cwd(). Phase 2+ will use workspace-selected path.
  */
 import { realpath } from "node:fs/promises";
-import { execSync } from "node:child_process";
+import { getWindowsShortPath } from "../system/win-short-path";
 
 export interface CwdOptions {
   requestedPath?: string; // Phase 2+: workspace-selected path
@@ -19,25 +19,10 @@ export async function resolveCwd(opts: CwdOptions = {}): Promise<string> {
 
   // Windows: convert to short path name for non-ASCII paths
   // (avoids MAX_PATH issues in ConPTY + old CMD)
-  if (process.platform === "win32" && /[^\x00-\x7F]/.test(resolved)) {
+  // getWindowsShortPath is a no-op on POSIX and a no-op for ASCII-only paths.
+  if (process.platform === "win32") {
     return getWindowsShortPath(resolved);
   }
 
   return resolved;
-}
-
-/**
- * Windows short path conversion via cmd.exe.
- * ASSUMED: exact kernel32.dll FFI signature needs verification during Windows CI (Plan 04).
- */
-function getWindowsShortPath(longPath: string): string {
-  try {
-    // Fallback: use cmd /c "for %i in (path) do echo %~si"
-    const result = execSync(`cmd /c for %i in ("${longPath}") do echo %~si`, {
-      encoding: "utf8",
-    }).trim();
-    return result || longPath;
-  } catch {
-    return longPath; // Best-effort; log warning
-  }
 }
