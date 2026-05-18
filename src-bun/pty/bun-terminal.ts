@@ -19,15 +19,21 @@ export function createBunTerminalPty(opts: PtySpawnOpts): PtyHandle {
     },
   });
 
+  // detached: true on POSIX calls setsid() → new session + pgid = pid.
+  // On Windows, `detached: true` maps to the DETACHED_PROCESS creation flag,
+  // which severs the ConPTY pipe and produces zero output (silent failure).
+  // Windows doesn't need setsid — ConPTY itself owns the child process group.
+  const isWindows = process.platform === "win32";
   const proc = Bun.spawn(opts.argv, {
     cwd: opts.cwd,
     env: opts.env,
     terminal, // PTY attach; makes isTTY=true for claude
     // DO NOT set stdin/stdout/stderr with terminal: option (Pitfall 2)
-    detached: true, // POSIX: calls setsid() → new session + pgid = pid
+    detached: !isWindows,
   });
 
-  // POSIX: proc.pid IS the new pgid because detached: true calls setsid()
+  // POSIX: proc.pid IS the new pgid because detached: true called setsid().
+  // Windows: ConPTY owns the group; pgid is just the pid for our struct.
   const pgid = proc.pid;
 
   void proc.exited.then((code) => opts.onExit(code ?? 0));
