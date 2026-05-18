@@ -196,7 +196,9 @@ if (import.meta.main) {
   const args = parseCli(Bun.argv);
 
   if (args.command === "doctor") {
-    await reap();
+    const result = await reap({ yes: args.yes });
+    // Print summary as JSON (machine-readable for CI scripting)
+    console.log(JSON.stringify(result));
     process.exit(0);
   }
 

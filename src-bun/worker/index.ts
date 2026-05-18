@@ -1,13 +1,10 @@
 /**
- * WorkerSupervisor — Phase 1 + Plan 02 implementation.
+ * WorkerSupervisor — Phase 1 + Plan 02 + Plan 04 implementation.
  * Supports: cli="echo-skeleton" | "claude" | "codex".
  * Mode: no-worktree (direct cwd passthrough).
  * Phase 3+ adds: worktree create/merge/inherit, MCP injection, multi-worker.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import os from "node:os";
-import { join } from "node:path";
 import { which } from "bun";
 import { nanoid } from "nanoid";
 import { bus } from "../bus/index";
@@ -18,6 +15,7 @@ import { AnsiChunkBatcher } from "../pty/batcher";
 import type { PtyHandle } from "../pty/handle";
 import { createPty } from "../pty/handle";
 import { redactChunk } from "../pty/redactor";
+import { clearPid, recordPid } from "../system/running-file";
 import { resolveCwd } from "./cwd";
 import { buildSpawnEnv } from "./spawn-env";
 
@@ -27,6 +25,13 @@ export interface WorkerSpec {
   cwd?: string; // defaults to process.cwd()
   envAllowlist?: string[];
   envMode?: "no-worktree";
+  /**
+   * TEST-ONLY: Override the resolved argv directly.
+   * The underscore prefix signals "not for production callers".
+   * Used by kill-group smoke test and Plan 05 redactor pipeline tests.
+   * Also honored if AGENSTRIX_ARGV_OVERRIDE env var is set (JSON-encoded string[]).
+   */
+  _testArgvOverride?: string[];
 }
 
 interface WorkerEntry {
@@ -39,54 +44,40 @@ interface WorkerEntry {
   cwd: string;
   startedAt: number;
   batcher: AnsiChunkBatcher;
-  seqCounter: number;
 }
 
 // In-memory worker registry
 const workerRegistry = new Map<string, WorkerEntry>();
 
-// running.json path for doctor --reap
-const RUNNING_FILE = join(os.homedir(), ".agenstrix", "running.json");
-
-function readRunningFile(): Record<string, { pid: number; pgid: number; startedAt: number }> {
-  try {
-    if (existsSync(RUNNING_FILE)) {
-      return JSON.parse(readFileSync(RUNNING_FILE, "utf8")) as Record<
-        string,
-        { pid: number; pgid: number; startedAt: number }
-      >;
+/**
+ * Resolve argv for a worker CLI.
+ * Priority:
+ * 1. spec._testArgvOverride (TEST-ONLY)
+ * 2. AGENSTRIX_ARGV_OVERRIDE env var (JSON-encoded string[]) — env-driven CI scenarios
+ * 3. cli-based resolution
+ */
+function resolveArgv(spec: WorkerSpec): string[] {
+  // TEST-ONLY override hook
+  if (spec._testArgvOverride) {
+    return spec._testArgvOverride;
+  }
+  // Env-driven override for CI scenarios
+  const envOverride = process.env.AGENSTRIX_ARGV_OVERRIDE;
+  if (envOverride) {
+    try {
+      const parsed = JSON.parse(envOverride) as string[];
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    } catch {
+      // ignore malformed env override
     }
-  } catch {
-    // Ignore
   }
-  return {};
-}
-
-function writeRunningFile(
-  data: Record<string, { pid: number; pgid: number; startedAt: number }>
-): void {
-  try {
-    mkdirSync(join(os.homedir(), ".agenstrix"), { recursive: true });
-    writeFileSync(RUNNING_FILE, JSON.stringify(data, null, 2));
-  } catch {
-    // Best effort
-  }
-}
-
-function recordPid(workerId: string, pid: number, pgid: number): void {
-  const existing = readRunningFile();
-  existing[workerId] = { pid, pgid, startedAt: Date.now() };
-  writeRunningFile(existing);
-}
-
-function clearPid(workerId: string): void {
-  const existing = readRunningFile();
-  delete existing[workerId];
-  writeRunningFile(existing);
+  return buildArgv(spec.cli);
 }
 
 /**
- * Resolve argv for a worker CLI.
+ * Resolve argv for a known CLI type.
  * - "claude": resolves full path via which(); throws if not found (caller must guard with self-test)
  * - "codex": resolves full path via which(); throws if not found
  * - "echo-skeleton": bare shell echo + long sleep (D-04 placeholder for test/degraded mode)
@@ -122,24 +113,15 @@ export async function spawnWorker(spec: WorkerSpec): Promise<{ workerId: string;
   const workerId = spec.id ?? nanoid();
   const cwd = await resolveCwd({ requestedPath: spec.cwd });
   const env = buildSpawnEnv(spec.envAllowlist ?? []);
-  const argv = buildArgv(spec.cli);
+  const argv = resolveArgv(spec);
   const envMode = spec.envMode ?? "no-worktree";
   const startedAt = Date.now();
 
-  // Register worker in DB before spawning
-  let seqCounter = 0;
-
   const batcher = new AnsiChunkBatcher({
     onFlush: async (chunk: Uint8Array) => {
-      // Persist to SQLite
+      // Persist to SQLite using appendAtomic for monotonic seq guarantees (Plan 03 carry-over)
       try {
-        const seq = seqCounter++;
-        await ptyChunksRepo.append({
-          workerId,
-          seq,
-          ts: Date.now(),
-          bytes: Buffer.from(chunk),
-        });
+        await ptyChunksRepo.appendAtomic(workerId, Date.now(), Buffer.from(chunk));
       } catch {
         // Best effort — don't crash the PTY on DB write error
       }
@@ -196,7 +178,6 @@ export async function spawnWorker(spec: WorkerSpec): Promise<{ workerId: string;
     cwd,
     startedAt,
     batcher,
-    seqCounter,
   };
   workerRegistry.set(workerId, entry);
 
@@ -217,7 +198,14 @@ export async function spawnWorker(spec: WorkerSpec): Promise<{ workerId: string;
     payload: { cli: spec.cli, cwd, pid: pty.pid, pgid: pty.pgid },
   });
 
-  recordPid(workerId, pty.pid, pty.pgid);
+  // Record PID into running.json for orphan detection (KILL-01 / CORE-05)
+  recordPid(workerId, {
+    pid: pty.pid,
+    pgid: pty.pgid,
+    startedAt,
+    cli: spec.cli,
+    cwd,
+  });
 
   return { workerId, pid: pty.pid };
 }

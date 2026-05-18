@@ -6,6 +6,7 @@
  *   agenstrix doctor   → { command: "doctor" }
  *   agenstrix --reap   → { command: "doctor", reap: true }
  *   agenstrix doctor --reap → { command: "doctor", reap: true }
+ *   agenstrix doctor --reap --yes → { command: "doctor", reap: true, yes: true }
  *   --port <N>         → overrides default port
  */
 
@@ -13,6 +14,8 @@ export interface CliArgs {
   command: "start" | "doctor";
   port: number;
   reap: boolean;
+  /** Non-interactive mode for doctor --reap: kills orphans without prompting. */
+  yes: boolean;
 }
 
 export function parseCli(argv: string[]): CliArgs {
@@ -23,6 +26,7 @@ export function parseCli(argv: string[]): CliArgs {
   let command: "start" | "doctor" = "start";
   let port = 3000;
   let reap = false;
+  let yes = false;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -33,10 +37,12 @@ export function parseCli(argv: string[]): CliArgs {
     } else if (arg === "--reap") {
       reap = true;
       if (command !== "doctor") command = "doctor";
+    } else if (arg === "--yes" || arg === "-y") {
+      yes = true;
     } else if (arg === "--port" && i + 1 < args.length) {
       const portStr = args[i + 1];
       const parsed = portStr ? parseInt(portStr, 10) : NaN;
-      if (!isNaN(parsed) && parsed > 0 && parsed < 65536) {
+      if (!Number.isNaN(parsed) && parsed > 0 && parsed < 65536) {
         port = parsed;
         i++; // Skip the port value
       } else {
@@ -46,5 +52,5 @@ export function parseCli(argv: string[]): CliArgs {
     }
   }
 
-  return { command, port, reap };
+  return { command, port, reap, yes };
 }
