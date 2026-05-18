@@ -1,0 +1,70 @@
+{
+  "name": "agenstrix",
+  "version": "0.1.0",
+  "description": "Multi-agent CLI orchestration — real claude/codex PTY workers in your browser",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src-bun/main.ts & bunx vite",
+    "dev:be": "bun run --watch src-bun/main.ts",
+    "dev:fe": "bunx vite",
+    "build": "bun build --compile --target=bun-darwin-arm64 src-bun/main.ts --outfile dist/agenstrix",
+    "lint": "bunx @biomejs/biome check --apply .",
+    "type-check": "tsc --noEmit",
+    "test": "bun test",
+    "db:generate": "bunx drizzle-kit generate",
+    "db:studio": "bunx drizzle-kit studio"
+  },
+  "bin": {
+    "agenstrix": "./src-bun/main.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.15",
+    "@tailwindcss/vite": "^4.3.0",
+    "@types/bun": "latest",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.0.2",
+    "bun-types": "^1.3.14",
+    "drizzle-kit": "^0.31.10",
+    "tailwindcss": "^4.3.0",
+    "vite": "^8.0.13"
+  },
+  "peerDependencies": {
+    "typescript": "^5.9"
+  },
+  "dependencies": {
+    "@assistant-ui/react": "^0.14.5",
+    "@base-ui/react": "^1.4.1",
+    "@fontsource-variable/geist": "^5.2.9",
+    "@hono/zod-validator": "^0.8.0",
+    "@tanstack/react-query": "^5.100.10",
+    "@xterm/addon-canvas": "^0.7.0",
+    "@xterm/addon-clipboard": "^0.2.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-search": "^0.16.0",
+    "@xterm/addon-serialize": "^0.14.0",
+    "@xterm/addon-unicode11": "^0.9.0",
+    "@xterm/addon-web-links": "^0.12.0",
+    "@xterm/addon-webgl": "^0.19.0",
+    "@xterm/xterm": "^6.0.0",
+    "bun-pty": "^0.4.8",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "drizzle-orm": "^0.45.2",
+    "get-port": "^7.2.0",
+    "hono": "^4.12.19",
+    "lucide-react": "^1.16.0",
+    "nanoid": "^5.1.11",
+    "pino": "^10.3.1",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "shadcn": "^4.7.0",
+    "simple-git": "^3.36.0",
+    "tailwind-merge": "^3.6.0",
+    "tw-animate-css": "^1.4.0",
+    "zod": "^4.4.3",
+    "zustand": "^5.0.13"
+  }
+}
