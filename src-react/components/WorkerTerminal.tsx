@@ -240,10 +240,19 @@ export function WorkerTerminal({ workerId }: WorkerTerminalProps) {
     };
     requestAnimationFrame(rafTick);
 
-    // Cleanup
+    // Cleanup — under React 19 StrictMode the effect is torn down once before
+    // its real run, so the first WS may still be in CONNECTING state when
+    // close() is called. Calling close() on a CONNECTING socket triggers a
+    // "WebSocket is closed before the connection is established" browser
+    // console warning. Gate the close on readyState: if still CONNECTING,
+    // wait for the open event and close after the handshake completes.
     return () => {
       if (loadingTimer) clearTimeout(loadingTimer);
-      ws.close(1000); // normal client closure
+      if (ws.readyState === WebSocket.CONNECTING) {
+        ws.addEventListener("open", () => ws.close(1000), { once: true });
+      } else if (ws.readyState === WebSocket.OPEN) {
+        ws.close(1000); // normal client closure
+      }
       term.dispose();
       ro.disconnect();
     };

@@ -1,11 +1,24 @@
 ---
 created: 2026-05-18
+resolved: 2026-05-18
 source: phase-01-verification
 resolves_phase: "01"
 severity: low
 type: cosmetic
 component: src-react/components/WorkerTerminal.tsx
+status: resolved
 ---
+
+## Resolution
+
+Fixed in the same commit that lands this file move. The cleanup callback
+in `src-react/components/WorkerTerminal.tsx` now gates `ws.close(1000)`
+on `ws.readyState`: if still `CONNECTING`, it attaches a one-shot
+`open` listener that closes after the handshake completes; if `OPEN`,
+it closes immediately as before. This eliminates the
+"WebSocket is closed before the connection is established" browser
+console warning on React 19 StrictMode double-mount.
+
 
 # WorkerTerminal WS cleanup warning under React 19 StrictMode
 
