@@ -11,17 +11,10 @@
  * 6. Event ts default: ts defaults to Date.now() when not provided
  * 7. Logger split: logger writes to agenstrix-*.log; diagnosticsLogger to diagnostics-*.log
  */
-import { test, expect, beforeEach, afterEach, describe } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import {
-  rmSync,
-  mkdirSync,
-  existsSync,
-  readdirSync,
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
 import { nanoid } from "nanoid";
 
 let testHome: string;

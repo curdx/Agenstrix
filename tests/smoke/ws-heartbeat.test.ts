@@ -19,71 +19,67 @@ let stopFn: (() => Promise<void>) | null = null;
 
 const TEST_PORT = 13103;
 
-test(
-  "ws-heartbeat: WS connection survives 35s idle + at least one empty binary heartbeat",
-  async () => {
-    const { startServer } = await import("../../src-bun/main");
+test("ws-heartbeat: WS connection survives 35s idle + at least one empty binary heartbeat", async () => {
+  const { startServer } = await import("../../src-bun/main");
 
-    const { port, stop, skeletonWorkerId } = (await startServer({ port: TEST_PORT })) as {
-      port: number;
-      stop: () => Promise<void>;
-      skeletonWorkerId: string;
+  const { port, stop, skeletonWorkerId } = (await startServer({ port: TEST_PORT })) as {
+    port: number;
+    stop: () => Promise<void>;
+    skeletonWorkerId: string;
+  };
+  stopFn = stop;
+
+  const workerId = skeletonWorkerId;
+  expect(typeof workerId).toBe("string");
+
+  let heartbeatCount = 0;
+  let finalReadyState = -1;
+
+  await new Promise<void>((resolve, reject) => {
+    const ws = new WebSocket(`ws://localhost:${port}/ws/worker/${workerId}`);
+    ws.binaryType = "arraybuffer";
+
+    const timeout = setTimeout(() => {
+      reject(new Error("WS connection timed out before opening"));
+    }, 5_000);
+
+    ws.onopen = () => {
+      clearTimeout(timeout);
+
+      // Schedule the 35s check
+      setTimeout(() => {
+        finalReadyState = ws.readyState;
+        ws.close(1000);
+        resolve();
+      }, 35_000);
     };
-    stopFn = stop;
 
-    const workerId = skeletonWorkerId;
-    expect(typeof workerId).toBe("string");
+    ws.onmessage = (evt) => {
+      // Heartbeat = empty binary frame (byteLength === 0)
+      if (evt.data instanceof ArrayBuffer && evt.data.byteLength === 0) {
+        heartbeatCount++;
+      }
+    };
 
-    let heartbeatCount = 0;
-    let finalReadyState = -1;
+    ws.onerror = (err) => {
+      reject(new Error(`WebSocket error: ${String(err)}`));
+    };
 
-    await new Promise<void>((resolve, reject) => {
-      const ws = new WebSocket(`ws://localhost:${port}/ws/worker/${workerId}`);
-      ws.binaryType = "arraybuffer";
+    ws.onclose = (evt) => {
+      // onclose fires after our deliberate ws.close(1000) — that's fine
+      // But if it fires before resolve() due to server-side close, that's a failure
+      if (finalReadyState === -1) {
+        reject(new Error(`WebSocket closed unexpectedly with code ${evt.code}`));
+      }
+    };
+  });
 
-      const timeout = setTimeout(() => {
-        reject(new Error("WS connection timed out before opening"));
-      }, 5_000);
+  // After 35s: connection must have still been OPEN when we checked
+  expect(finalReadyState).toBe(WebSocket.OPEN); // 1
 
-      ws.onopen = () => {
-        clearTimeout(timeout);
-
-        // Schedule the 35s check
-        setTimeout(() => {
-          finalReadyState = ws.readyState;
-          ws.close(1000);
-          resolve();
-        }, 35_000);
-      };
-
-      ws.onmessage = (evt) => {
-        // Heartbeat = empty binary frame (byteLength === 0)
-        if (evt.data instanceof ArrayBuffer && evt.data.byteLength === 0) {
-          heartbeatCount++;
-        }
-      };
-
-      ws.onerror = (err) => {
-        reject(new Error(`WebSocket error: ${String(err)}`));
-      };
-
-      ws.onclose = (evt) => {
-        // onclose fires after our deliberate ws.close(1000) — that's fine
-        // But if it fires before resolve() due to server-side close, that's a failure
-        if (finalReadyState === -1) {
-          reject(new Error(`WebSocket closed unexpectedly with code ${evt.code}`));
-        }
-      };
-    });
-
-    // After 35s: connection must have still been OPEN when we checked
-    expect(finalReadyState).toBe(WebSocket.OPEN); // 1
-
-    // Must have received at least one heartbeat (30s cadence, so ≥1 in 35s)
-    expect(heartbeatCount).toBeGreaterThanOrEqual(1);
-  },
-  45_000
-);
+  // Must have received at least one heartbeat (30s cadence, so ≥1 in 35s)
+  expect(heartbeatCount).toBeGreaterThanOrEqual(1);
+}, 45_000);
 
 afterAll(async () => {
   if (stopFn) await stopFn();

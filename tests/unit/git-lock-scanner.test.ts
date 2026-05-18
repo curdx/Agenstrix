@@ -2,18 +2,12 @@
  * Unit tests for src-bun/system/git-lock-scanner.ts
  * Tests: scanGitLocks (stale vs fresh), removeLock (safety + unlink)
  */
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { existsSync, mkdirSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  mkdirSync,
-  writeFileSync,
-  existsSync,
-  rmSync,
-  utimesSync,
-} from "node:fs";
 import { nanoid } from "nanoid";
-import { scanGitLocks, removeLock, STALE_AGE_MS } from "../../src-bun/system/git-lock-scanner";
+import { removeLock, STALE_AGE_MS, scanGitLocks } from "../../src-bun/system/git-lock-scanner";
 
 let testRoot: string;
 
@@ -24,7 +18,11 @@ describe("git-lock-scanner", () => {
   });
 
   afterEach(() => {
-    try { rmSync(testRoot, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      rmSync(testRoot, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   test("Test 1 (no locks): scanGitLocks returns [] when no .git/index.lock exists", async () => {

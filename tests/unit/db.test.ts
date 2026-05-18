@@ -2,11 +2,12 @@
  * Unit test: initDb() creates DB, sets WAL, sets PRAGMAs, creates all 11 tables, makes backup.
  * RED: Expected to FAIL initially — no src-bun/db/index.ts exists yet.
  */
-import { test, expect, afterAll } from "bun:test";
+
+import { Database } from "bun:sqlite";
+import { afterAll, expect, test } from "bun:test";
+import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { existsSync, rmSync, mkdirSync } from "node:fs";
-import { Database } from "bun:sqlite";
 
 const HOME = os.homedir();
 const AGENSTRIX_HOME = path.join(HOME, ".agenstrix");
@@ -63,14 +64,15 @@ test("initDb() satisfies all DB-DURABILITY-01 requirements", async () => {
   // The actual PRAGMA is tested implicitly when FK-constrained inserts succeed.
   const fkCheckDb = new Database(DB_PATH);
   fkCheckDb.exec("PRAGMA foreign_keys = ON;");
-  const fkOn = (fkCheckDb.query("PRAGMA foreign_keys").get() as Record<string, number>).foreign_keys;
+  const fkOn = (fkCheckDb.query("PRAGMA foreign_keys").get() as Record<string, number>)
+    .foreign_keys;
   expect(fkOn).toBe(1);
   fkCheckDb.close();
 
   // (e) all 11 tables exist in sqlite_master
-  const rows = sqlite
-    .query("SELECT name FROM sqlite_master WHERE type='table'")
-    .all() as Array<{ name: string }>;
+  const rows = sqlite.query("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{
+    name: string;
+  }>;
   const tableNames = rows.map((r) => r.name);
 
   for (const tableName of EXPECTED_TABLES) {
@@ -82,9 +84,9 @@ test("initDb() satisfies all DB-DURABILITY-01 requirements", async () => {
   // (f) backup created in ~/.agenstrix/backups/ if store.db previously existed
   if (dbExistedBefore) {
     expect(existsSync(BACKUP_DIR)).toBe(true);
-    const backups = require("node:fs").readdirSync(BACKUP_DIR).filter(
-      (f: string) => f.startsWith("store-") && f.endsWith(".db")
-    );
+    const backups = require("node:fs")
+      .readdirSync(BACKUP_DIR)
+      .filter((f: string) => f.startsWith("store-") && f.endsWith(".db"));
     expect(backups.length).toBeGreaterThan(0);
   }
 

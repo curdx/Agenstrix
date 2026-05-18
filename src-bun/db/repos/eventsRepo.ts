@@ -5,10 +5,10 @@
  * - append: serialises payload via JSON.stringify; ts defaults to Date.now().
  * - listByWorker: parses payload via JSON.parse so callers receive objects, not strings.
  */
-import { eq, asc, gte, and } from "drizzle-orm";
+import { and, asc, eq, gte } from "drizzle-orm";
+import { nanoid } from "nanoid";
 import { getDb } from "../index";
 import { events } from "../schema";
-import { nanoid } from "nanoid";
 
 export const eventsRepo = {
   async append(input: {
@@ -47,13 +47,16 @@ export const eventsRepo = {
     return rows.map((r) => ({
       ...r,
       // Parse JSON payload on read so callers receive objects, not raw strings.
-      payload: r.payload != null ? (() => {
-        try {
-          return JSON.parse(r.payload);
-        } catch {
-          return r.payload; // Return raw string as fallback if parsing fails
-        }
-      })() : null,
+      payload:
+        r.payload != null
+          ? (() => {
+              try {
+                return JSON.parse(r.payload);
+              } catch {
+                return r.payload; // Return raw string as fallback if parsing fails
+              }
+            })()
+          : null,
     }));
   },
 };

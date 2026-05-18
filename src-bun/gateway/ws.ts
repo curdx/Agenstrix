@@ -13,7 +13,7 @@
 import { Hono } from "hono";
 import { upgradeWebSocket, websocket } from "hono/bun";
 import { bus } from "../bus/index";
-import { sendToWorker, resizeWorker } from "../worker/index";
+import { resizeWorker, sendToWorker } from "../worker/index";
 
 const app = new Hono();
 

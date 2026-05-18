@@ -100,7 +100,8 @@ export function rotateBackups(keep: number = BACKUP_KEEP): void {
 
   // Remove oldest until we are at or under the keep limit
   while (files.length > keep) {
-    const oldest = files.shift()!;
+    const oldest = files.shift();
+    if (!oldest) break;
     unlinkSync(join(backupDir, oldest.filename));
   }
 }
@@ -125,7 +126,7 @@ export function restoreBackup(filename: string): void {
 
   // Ensure the resolved path is strictly inside BACKUP_DIR (path-traversal guard)
   const canonicalDir = resolve(backupDir);
-  if (!backupPath.startsWith(canonicalDir + "/") && backupPath !== canonicalDir) {
+  if (!backupPath.startsWith(`${canonicalDir}/`) && backupPath !== canonicalDir) {
     throw new Error(`Path traversal detected: ${JSON.stringify(filename)}`);
   }
 

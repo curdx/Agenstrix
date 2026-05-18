@@ -47,9 +47,7 @@ export const workersRepo = {
       .where(eq(workers.id, id));
   },
 
-  async get(
-    id: string
-  ): Promise<{
+  async get(id: string): Promise<{
     id: string;
     cli: string;
     cwd: string;

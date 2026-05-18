@@ -11,10 +11,11 @@
  * Path resolution uses process.env.HOME so tests can override HOME to an isolated
  * tmpdir before importing this module.
  */
-import pino from "pino";
+
 import { mkdirSync } from "node:fs";
-import { join } from "node:path";
 import os from "node:os";
+import { join } from "node:path";
+import pino from "pino";
 
 function getLogsDir(): string {
   const home = process.env.HOME ?? os.homedir();

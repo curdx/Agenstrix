@@ -30,7 +30,7 @@ function createEventBus(): EventBus {
       if (!subscribers.has(topic)) {
         subscribers.set(topic, new Set());
       }
-      subscribers.get(topic)!.add(handler);
+      subscribers.get(topic)?.add(handler);
 
       // Return unsubscribe closure
       return () => {

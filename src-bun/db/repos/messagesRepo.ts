@@ -1,10 +1,10 @@
 /**
  * messagesRepo — thin typed wrapper around the `messages` table.
  */
-import { eq, asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
+import { nanoid } from "nanoid";
 import { getDb } from "../index";
 import { messages } from "../schema";
-import { nanoid } from "nanoid";
 
 export const messagesRepo = {
   async append(input: {

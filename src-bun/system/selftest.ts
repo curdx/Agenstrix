@@ -45,11 +45,12 @@ const MIN_BUN = [1, 3, 14];
 
 function checkBunVersion(): boolean {
   const parts = Bun.version.split(".").map(Number);
-  const [major, minor, patch] = parts;
+  const [major = 0, minor = 0, patch = 0] = parts;
+  const [minMajor = 0, minMinor = 0, minPatch = 0] = MIN_BUN;
   return (
-    major! > MIN_BUN[0]! ||
-    (major === MIN_BUN[0] && minor! > MIN_BUN[1]!) ||
-    (major === MIN_BUN[0] && minor === MIN_BUN[1] && patch! >= MIN_BUN[2]!)
+    major > minMajor ||
+    (major === minMajor && minor > minMinor) ||
+    (major === minMajor && minor === minMinor && patch >= minPatch)
   );
 }
 

@@ -104,9 +104,7 @@ async function killOrphan(workerId: string, pid: number, pgid: number): Promise<
     const code = (err as NodeJS.ErrnoException).code;
     if (code !== "EPERM" && code !== "ESRCH") {
       // Unexpected error — log but continue
-      process.stderr.write(
-        `doctor: unexpected error killing PID ${pid}: ${String(err)}\n`
-      );
+      process.stderr.write(`doctor: unexpected error killing PID ${pid}: ${String(err)}\n`);
     }
   }
   clearPid(workerId);

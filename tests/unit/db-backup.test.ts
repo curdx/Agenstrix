@@ -8,10 +8,10 @@
  * 4. Rotation invariant: keeps 10 even when all share same mtime (by name-sort)
  * 5. restoreBackup writes backup back to store.db
  */
-import { test, expect, beforeEach, afterEach, describe } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { rmSync, mkdirSync, writeFileSync, utimesSync, existsSync, readFileSync } from "node:fs";
 import { nanoid } from "nanoid";
 
 let testHome: string;
@@ -46,7 +46,7 @@ describe("backups module", () => {
   });
 
   test("Test 2 (creates timestamped backup): backup created with correct name pattern", async () => {
-    const { backupBeforeMigrate, listBackups, getDbPath, getBackupDir } = await import(
+    const { backupBeforeMigrate, listBackups, getDbPath } = await import(
       "../../src-bun/db/backups"
     );
 

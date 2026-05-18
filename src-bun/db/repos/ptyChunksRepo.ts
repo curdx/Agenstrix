@@ -7,10 +7,10 @@
  * - appendAtomic wraps seq allocation + insert in a single SQLite transaction
  *   (T-01-03-04) so concurrent calls cannot produce duplicate seq values.
  */
-import { eq, asc, sql } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
+import { nanoid } from "nanoid";
 import { getDb } from "../index";
 import { ptyChunks } from "../schema";
-import { nanoid } from "nanoid";
 
 export const ptyChunksRepo = {
   /**
@@ -18,12 +18,7 @@ export const ptyChunksRepo = {
    * Prefer appendAtomic for production use — this exists for compatibility
    * with code that already computed the seq externally (e.g. Plan 01-02 wiring).
    */
-  async append(input: {
-    workerId: string;
-    seq: number;
-    ts: number;
-    bytes: Buffer;
-  }): Promise<void> {
+  async append(input: { workerId: string; seq: number; ts: number; bytes: Buffer }): Promise<void> {
     const db = getDb();
     await db.insert(ptyChunks).values({
       id: nanoid(),
@@ -79,9 +74,7 @@ export const ptyChunksRepo = {
   /**
    * Return all chunks for a worker ordered by seq ASC (replay-correct order).
    */
-  async listByWorker(
-    workerId: string
-  ): Promise<Array<{ seq: number; ts: number; bytes: Buffer }>> {
+  async listByWorker(workerId: string): Promise<Array<{ seq: number; ts: number; bytes: Buffer }>> {
     const db = getDb();
     const rows = await db
       .select({ seq: ptyChunks.seq, ts: ptyChunks.ts, bytes: ptyChunks.bytes })

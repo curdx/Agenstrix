@@ -7,8 +7,8 @@
  */
 import { Hono } from "hono";
 import { restApp } from "./rest";
-import { wsApp, websocket } from "./ws";
 import { sseApp } from "./sse";
+import { websocket, wsApp } from "./ws";
 
 const app = new Hono();
 

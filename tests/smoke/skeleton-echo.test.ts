@@ -11,7 +11,7 @@
  * This test explicitly spawns a second echo-skeleton worker to verify the skeleton path
  * continues to work regardless of D-01 behavior.
  */
-import { test, expect, afterAll } from "bun:test";
+import { afterAll, expect, test } from "bun:test";
 
 let stopFn: (() => Promise<void>) | null = null;
 
@@ -23,7 +23,7 @@ test("skeleton echo e2e: DB row + bus event + pty_chunks + REST replay + WS fram
   const { spawnWorker } = await import("../../src-bun/worker/index");
   const { ptyChunksRepo } = await import("../../src-bun/db/repos/ptyChunksRepo");
 
-  const { port, stop } = await startServer({ port: TEST_PORT }) as {
+  const { port, stop } = (await startServer({ port: TEST_PORT })) as {
     port: number;
     stop: () => Promise<void>;
     skeletonWorkerId: string;
@@ -42,14 +42,14 @@ test("skeleton echo e2e: DB row + bus event + pty_chunks + REST replay + WS fram
   expect(workerId.length).toBeGreaterThan(0);
 
   // Give PTY time to emit the hello
-  await new Promise(r => setTimeout(r, 1000));
+  await new Promise((r) => setTimeout(r, 1000));
 
   // (a) DB row: workers table has echo-skeleton
   // Verify via workers list API
   const workersResp = await fetch(`http://localhost:${port}/api/workers`);
   expect(workersResp.status).toBe(200);
-  const workers = await workersResp.json() as Array<{ id: string; cli: string }>;
-  const skeletonWorker = workers.find(w => w.id === workerId);
+  const workers = (await workersResp.json()) as Array<{ id: string; cli: string }>;
+  const skeletonWorker = workers.find((w) => w.id === workerId);
   expect(skeletonWorker).toBeDefined();
   expect(skeletonWorker?.cli).toBe("echo-skeleton");
 
@@ -63,19 +63,17 @@ test("skeleton echo e2e: DB row + bus event + pty_chunks + REST replay + WS fram
   }
 
   // Verify the combined bytes contain "Hello from Agenstrix skeleton"
-  const allBytes = Buffer.concat(chunks.map(c => Buffer.from(c.bytes)));
+  const allBytes = Buffer.concat(chunks.map((c) => Buffer.from(c.bytes)));
   const text = allBytes.toString("utf8");
   expect(text).toContain("Hello from Agenstrix skeleton");
 
   // (d) REST replay: GET /api/workers/:id/chunks returns same bytes
   const restResp = await fetch(`http://localhost:${port}/api/workers/${workerId}/chunks`);
   expect(restResp.status).toBe(200);
-  const restChunks = await restResp.json() as Array<{ seq: number; ts: number; bytes: string }>;
+  const restChunks = (await restResp.json()) as Array<{ seq: number; ts: number; bytes: string }>;
   expect(restChunks.length).toBeGreaterThan(0);
 
-  const restText = restChunks
-    .map(c => Buffer.from(c.bytes, "base64").toString("utf8"))
-    .join("");
+  const restText = restChunks.map((c) => Buffer.from(c.bytes, "base64").toString("utf8")).join("");
   expect(restText).toContain("Hello from Agenstrix skeleton");
 
   // (e) WebSocket connects and is functional within 2s
@@ -84,7 +82,10 @@ test("skeleton echo e2e: DB row + bus event + pty_chunks + REST replay + WS fram
   const wsConnected = await new Promise<boolean>((resolve) => {
     const ws = new WebSocket(`ws://localhost:${port}/ws/worker/${workerId}`);
     ws.binaryType = "arraybuffer";
-    const timeout = setTimeout(() => { ws.close(); resolve(false); }, 2000);
+    const timeout = setTimeout(() => {
+      ws.close();
+      resolve(false);
+    }, 2000);
 
     ws.onopen = () => {
       // Connection established — success (no need to wait for data frame)
@@ -92,7 +93,10 @@ test("skeleton echo e2e: DB row + bus event + pty_chunks + REST replay + WS fram
       ws.close(1000);
       resolve(true);
     };
-    ws.onerror = () => { clearTimeout(timeout); resolve(false); };
+    ws.onerror = () => {
+      clearTimeout(timeout);
+      resolve(false);
+    };
   });
   expect(wsConnected).toBe(true);
 }, 20000);

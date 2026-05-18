@@ -4,8 +4,13 @@
  * TDD RED: Tests fail against Plan 01 baseline (no HARD_DENYLIST export, no denylist override).
  * TDD GREEN: Passes after Plan 05 tightened implementation.
  */
-import { test, expect, describe, beforeEach, afterEach } from "bun:test";
-import { buildSpawnEnv, ALLOWED_ENV_KEYS, HARD_DENYLIST, HARD_DENYLIST_PREFIXES } from "../../src-bun/worker/spawn-env";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import {
+  ALLOWED_ENV_KEYS,
+  buildSpawnEnv,
+  HARD_DENYLIST,
+  HARD_DENYLIST_PREFIXES,
+} from "../../src-bun/worker/spawn-env";
 
 // Save original env before each test, restore after
 let savedEnv: NodeJS.ProcessEnv;
@@ -165,7 +170,7 @@ describe("buildSpawnEnv", () => {
     expect("HOME" in env).toBe(false);
 
     // All values in the result must be defined strings
-    for (const [key, value] of Object.entries(env)) {
+    for (const [_key, value] of Object.entries(env)) {
       expect(typeof value).toBe("string");
       expect(value).toBeDefined();
     }

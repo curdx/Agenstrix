@@ -7,7 +7,7 @@
  *
  * Tests 1–9 mirror the plan acceptance criteria exactly.
  */
-import { describe, it, expect, afterEach } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { AnsiChunkBatcher } from "../../src-bun/pty/batcher";
 
 // ---------------------------------------------------------------------------
@@ -104,6 +104,7 @@ describe("AnsiChunkBatcher", () => {
       const str = decode(chunk);
       // The CSI intro "\x1b[" must NOT appear at the tail of any flush unless
       // followed by at least a final byte:
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI ESC byte by design
       const trailingCSI = /\x1b\[$/.test(str);
       expect(trailingCSI).toBe(false);
     }
@@ -128,7 +129,7 @@ describe("AnsiChunkBatcher", () => {
       const str = decode(chunk);
       // A chunk that contains \x1b] but no \x07 or \x1b\\ would be a partial flush
       if (str.includes("\x1b]") && !str.includes("\x07") && !str.includes("\x1b\\")) {
-        throw new Error("Flushed partial OSC without terminator!\nChunk: " + JSON.stringify(str));
+        throw new Error(`Flushed partial OSC without terminator!\nChunk: ${JSON.stringify(str)}`);
       }
     }
   });

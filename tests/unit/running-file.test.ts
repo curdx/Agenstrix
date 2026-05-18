@@ -3,24 +3,24 @@
  * Tests: recordPid, clearPid, readRunning, writeRunning, isProcessAlive, atomic write behavior
  * Also covers WORKTREE-CWD-01: env-scrub + realpath for spawn-env and cwd modules.
  */
-import { describe, test, expect, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
+import { execSync } from "node:child_process";
+import { existsSync, mkdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { mkdirSync, writeFileSync, existsSync, rmSync, realpathSync } from "node:fs";
-import { execSync } from "node:child_process";
 import { nanoid } from "nanoid";
 
 // Import modules under test (static imports — no query params needed)
 import {
-  recordPid,
   clearPid,
-  readRunning,
-  writeRunning,
   isProcessAlive,
   RUNNING_FILE_PATH,
+  readRunning,
+  recordPid,
+  writeRunning,
 } from "../../src-bun/system/running-file";
-import { buildSpawnEnv } from "../../src-bun/worker/spawn-env";
 import { resolveCwd } from "../../src-bun/worker/cwd";
+import { buildSpawnEnv } from "../../src-bun/worker/spawn-env";
 
 // ── test isolation helper ─────────────────────────────────────────────────────
 // We override process.env.HOME before each test so running-file's lazy
@@ -33,29 +33,29 @@ function makeTmpHome(): string {
 }
 
 describe("running-file", () => {
-  let testHome: string;
+  let _testHome: string;
 
   beforeEach(() => {
-    testHome = makeTmpHome();
+    _testHome = makeTmpHome();
   });
 
   test("Test 1: recordPid then readRunning returns the entry", () => {
     const t = Date.now();
     recordPid("w1", { pid: 1234, pgid: 1234, startedAt: t, cli: "claude", cwd: "/tmp" });
     const result = readRunning();
-    expect(result["w1"]).toBeDefined();
-    expect(result["w1"].pid).toBe(1234);
-    expect(result["w1"].pgid).toBe(1234);
-    expect(result["w1"].startedAt).toBe(t);
-    expect(result["w1"].cli).toBe("claude");
-    expect(result["w1"].cwd).toBe("/tmp");
+    expect(result.w1).toBeDefined();
+    expect(result.w1.pid).toBe(1234);
+    expect(result.w1.pgid).toBe(1234);
+    expect(result.w1.startedAt).toBe(t);
+    expect(result.w1.cli).toBe("claude");
+    expect(result.w1.cwd).toBe("/tmp");
   });
 
   test("Test 2: clearPid removes the entry", () => {
     recordPid("w2", { pid: 5678, pgid: 5678, startedAt: Date.now(), cli: "claude", cwd: "/tmp" });
     clearPid("w2");
     const result = readRunning();
-    expect(result["w2"]).toBeUndefined();
+    expect(result.w2).toBeUndefined();
   });
 
   test("Test 3: readRunning on missing file returns empty object (no throw)", () => {
@@ -85,15 +85,15 @@ describe("running-file", () => {
     };
     writeRunning(state);
     const runningPath = RUNNING_FILE_PATH();
-    const tmpPath = runningPath + ".tmp";
+    const tmpPath = `${runningPath}.tmp`;
     // Final file exists
     expect(existsSync(runningPath)).toBe(true);
     // .tmp file was cleaned up by rename
     expect(existsSync(tmpPath)).toBe(false);
     // Content is valid JSON
     const result = readRunning();
-    expect(result["w6"]).toBeDefined();
-    expect(result["w6"].pid).toBe(9999);
+    expect(result.w6).toBeDefined();
+    expect(result.w6.pid).toBe(9999);
   });
 
   // ─── WORKTREE-CWD-01 Tests ─────────────────────────────────────────────────
@@ -141,8 +141,16 @@ describe("running-file", () => {
       const expectedReal = realpathSync(realDir);
       expect(resolved).toBe(expectedReal);
     } finally {
-      try { rmSync(symlinkPath); } catch { /* ignore */ }
-      try { rmSync(realDir, { recursive: true }); } catch { /* ignore */ }
+      try {
+        rmSync(symlinkPath);
+      } catch {
+        /* ignore */
+      }
+      try {
+        rmSync(realDir, { recursive: true });
+      } catch {
+        /* ignore */
+      }
     }
   });
 });

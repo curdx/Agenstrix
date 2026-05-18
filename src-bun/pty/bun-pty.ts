@@ -13,7 +13,7 @@
 import { spawn as bunPtySpawn } from "bun-pty";
 import type { PtyHandle, PtySpawnOpts } from "./handle";
 
-export function createBunPtyFallback(opts: PtySpawnOpts): PtyHandle {
+export function createBunPtyFallback(_opts: PtySpawnOpts): PtyHandle {
   // SKELETON STUB — bun-pty API signature needs verification before wiring (Plan 02)
   // The spawn API is [ASSUMED] based on bun-pty README at time of research.
   // TODO (Plan 02): wire actual bun-pty API after verifying against installed package.

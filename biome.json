@@ -3,10 +3,11 @@
   "files": {
     "includes": [
       "**",
-      "!dist/**",
-      "!drizzle/**",
-      "!node_modules/**",
-      "!src-react/components/ui/**"
+      "!dist",
+      "!drizzle",
+      "!node_modules",
+      "!src-react/components/ui",
+      "!src-react/index.css"
     ]
   },
   "formatter": {

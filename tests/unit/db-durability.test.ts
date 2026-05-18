@@ -10,10 +10,10 @@
  * 6. checkpoint mode is PASSIVE (periodic scheduler)
  * 7. shutdownDb uses TRUNCATE checkpoint
  */
-import { test, expect, beforeEach, afterEach, describe } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { mkdirSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { rmSync, mkdirSync } from "node:fs";
 import { nanoid } from "nanoid";
 
 // We manipulate HOME to isolate tests from real ~/.agenstrix

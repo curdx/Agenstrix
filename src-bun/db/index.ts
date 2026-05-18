@@ -10,11 +10,11 @@
  * - Shutdown: wal_checkpoint(TRUNCATE) once, then close
  */
 import { Database } from "bun:sqlite";
+import { mkdirSync } from "node:fs";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
-import { mkdirSync } from "node:fs";
-import * as schema from "./schema";
 import { backupBeforeMigrate, getAgenstrixHome, getDbPath } from "./backups";
+import * as schema from "./schema";
 
 // Re-export for backward compat (main.ts uses AGENSTRIX_HOME constant).
 // Note: since getAgenstrixHome() is lazy, this getter-based constant respects

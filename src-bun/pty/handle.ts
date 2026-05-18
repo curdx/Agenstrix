@@ -2,8 +2,9 @@
  * PtyHandle interface — abstraction over Bun.Terminal (primary) and bun-pty (fallback).
  * The factory function createPty() selects the backend via AGENSTRIX_PTY_BACKEND env var.
  */
-import { createBunTerminalPty } from "./bun-terminal";
+
 import { createBunPtyFallback } from "./bun-pty";
+import { createBunTerminalPty } from "./bun-terminal";
 
 export interface PtyHandle {
   pid: number;
@@ -30,7 +31,6 @@ export interface PtySpawnOpts {
  * Fallback: bun-pty (FFI, set AGENSTRIX_PTY_BACKEND=bun-pty to activate)
  */
 export function createPty(opts: PtySpawnOpts): PtyHandle {
-  const useFallback =
-    process.env.AGENSTRIX_PTY_BACKEND === "bun-pty";
+  const useFallback = process.env.AGENSTRIX_PTY_BACKEND === "bun-pty";
   return useFallback ? createBunPtyFallback(opts) : createBunTerminalPty(opts);
 }

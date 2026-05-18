@@ -60,7 +60,7 @@ export async function startServer(opts: { port?: number } = {}): Promise<{
       `Fix: ensure ${AGENSTRIX_HOME} exists and is writable.\n` +
       `  macOS/Linux: chmod u+w ~/.agenstrix\n` +
       `  Windows: check folder permissions in Explorer`;
-    process.stderr.write(msg + "\n");
+    process.stderr.write(`${msg}\n`);
     process.exit(1);
   }
 

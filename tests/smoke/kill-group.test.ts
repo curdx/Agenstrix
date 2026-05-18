@@ -5,11 +5,11 @@
  *
  * POSIX-only — skipped on Windows (ConPTY cascade is validated in CI Plan 06).
  */
-import { describe, test, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { execSync } from "node:child_process";
-import { isProcessAlive, readRunning } from "../../src-bun/system/running-file";
 import { startServer } from "../../src-bun/main";
-import { spawnWorker, killWorker } from "../../src-bun/worker/index";
+import { isProcessAlive, readRunning } from "../../src-bun/system/running-file";
+import { killWorker, spawnWorker } from "../../src-bun/worker/index";
 
 const IS_WINDOWS = process.platform === "win32";
 

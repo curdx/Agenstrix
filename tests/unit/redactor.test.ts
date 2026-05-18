@@ -6,8 +6,8 @@
  * TDD RED: These tests FAIL against the identity stub in Plan 01.
  * TDD GREEN: Passes after Plan 05 real implementation.
  */
-import { test, expect, describe } from "bun:test";
-import { redactChunk, redactString, PATTERNS } from "../../src-bun/pty/redactor";
+import { describe, expect, test } from "bun:test";
+import { PATTERNS, redactChunk, redactString } from "../../src-bun/pty/redactor";
 
 describe("PATTERNS export", () => {
   test("exports exactly 4 patterns (no broad UNKNOWN-SECRET per Assumption A3)", () => {
@@ -139,7 +139,9 @@ describe("redactChunk — binary chunk handling", () => {
     // Construct: 100KB 'A' prefix + secret + 'B' suffix
     // This exercises the pattern matching on a large payload
     const bigChunk =
-      "A".repeat(50000) + "sk-ant-api03-fakekey1234567890abcdefghijklmnopqrstuvwxyz" + "B".repeat(50000);
+      "A".repeat(50000) +
+      "sk-ant-api03-fakekey1234567890abcdefghijklmnopqrstuvwxyz" +
+      "B".repeat(50000);
     const inputBytes = new TextEncoder().encode(bigChunk);
 
     const start = performance.now();

@@ -2,7 +2,7 @@
  * Smoke test: GET /healthz returns 200 with { ok: true, bunVersion: string }
  * RED: Expected to FAIL initially — no server exists yet.
  */
-import { test, expect, afterAll } from "bun:test";
+import { afterAll, expect, test } from "bun:test";
 
 // Dynamic import so the test file loads even before the module exists
 let startServer: (opts: { port?: number }) => Promise<{ port: number; stop: () => Promise<void> }>;
@@ -21,7 +21,7 @@ test("GET /healthz returns 200 with ok + bunVersion", async () => {
   const resp = await fetch(`http://localhost:${port}/healthz`);
   expect(resp.status).toBe(200);
 
-  const body = await resp.json() as Record<string, unknown>;
+  const body = (await resp.json()) as Record<string, unknown>;
   expect(body.ok).toBe(true);
   expect(typeof body.bunVersion).toBe("string");
   expect(body.bunVersion).toBeTruthy();
