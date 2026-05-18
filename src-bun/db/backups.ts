@@ -10,7 +10,7 @@
  */
 import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from "node:fs";
 import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { join, resolve, sep } from "node:path";
 
 export const BACKUP_KEEP = 10;
 
@@ -124,9 +124,10 @@ export function restoreBackup(filename: string): void {
   const backupDir = getBackupDir();
   const backupPath = resolve(backupDir, filename);
 
-  // Ensure the resolved path is strictly inside BACKUP_DIR (path-traversal guard)
+  // Ensure the resolved path is strictly inside BACKUP_DIR (path-traversal guard).
+  // Use path.sep so this works on Windows (\) and POSIX (/).
   const canonicalDir = resolve(backupDir);
-  if (!backupPath.startsWith(`${canonicalDir}/`) && backupPath !== canonicalDir) {
+  if (!backupPath.startsWith(canonicalDir + sep) && backupPath !== canonicalDir) {
     throw new Error(`Path traversal detected: ${JSON.stringify(filename)}`);
   }
 
