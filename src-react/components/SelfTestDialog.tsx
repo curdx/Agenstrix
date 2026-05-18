@@ -75,11 +75,16 @@ export function SelfTestDialog({ open, warnings, onClose }: SelfTestDialogProps)
   async function handleRecheck() {
     setRechecking(true);
     try {
-      const resp = await fetch("/healthz");
+      // CR-02: /healthz returns the *cached* boot-time warnings; only
+      // POST /api/selftest/recheck actually re-runs the self-test (INFRA-06).
+      // The endpoint returns { ok, claudeFound, gitFound, sqliteWritable,
+      // bunOk, warnings } — see rest.ts:83.
+      const resp = await fetch("/api/selftest/recheck", { method: "POST" });
       if (resp.ok) {
-        const data = (await resp.json()) as { selfTestWarnings?: SelfTestWarning[] };
-        setSelfTestWarnings(data.selfTestWarnings ?? []);
-        if ((data.selfTestWarnings ?? []).length === 0) {
+        const data = (await resp.json()) as { warnings?: SelfTestWarning[] };
+        const fresh = data.warnings ?? [];
+        setSelfTestWarnings(fresh);
+        if (fresh.length === 0) {
           onClose();
         }
       }
