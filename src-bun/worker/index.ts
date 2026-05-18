@@ -4,20 +4,21 @@
  * Mode: no-worktree (direct cwd passthrough).
  * Phase 3+ adds: worktree create/merge/inherit, MCP injection, multi-worker.
  */
-import { createPty } from "../pty/handle";
-import { AnsiChunkBatcher } from "../pty/batcher";
-import { redactChunk } from "../pty/redactor";
+
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import { join } from "node:path";
+import { nanoid } from "nanoid";
 import { bus } from "../bus/index";
-import { workersRepo } from "../db/repos/workersRepo";
-import { ptyChunksRepo } from "../db/repos/ptyChunksRepo";
 import { eventsRepo } from "../db/repos/eventsRepo";
+import { ptyChunksRepo } from "../db/repos/ptyChunksRepo";
+import { workersRepo } from "../db/repos/workersRepo";
+import { AnsiChunkBatcher } from "../pty/batcher";
+import type { PtyHandle } from "../pty/handle";
+import { createPty } from "../pty/handle";
+import { redactChunk } from "../pty/redactor";
 import { resolveCwd } from "./cwd";
 import { buildSpawnEnv } from "./spawn-env";
-import { nanoid } from "nanoid";
-import { join } from "node:path";
-import os from "node:os";
-import type { PtyHandle } from "../pty/handle";
-import { writeFileSync, readFileSync, existsSync, mkdirSync } from "node:fs";
 
 export interface WorkerSpec {
   id?: string; // auto-generated if not provided
@@ -102,9 +103,7 @@ function buildArgv(cli: WorkerSpec["cli"]): string[] {
   throw new Error(`Unknown CLI: ${cli}`);
 }
 
-export async function spawnWorker(
-  spec: WorkerSpec
-): Promise<{ workerId: string; pid: number }> {
+export async function spawnWorker(spec: WorkerSpec): Promise<{ workerId: string; pid: number }> {
   const workerId = spec.id ?? nanoid();
   const cwd = await resolveCwd({ requestedPath: spec.cwd });
   const env = buildSpawnEnv(spec.envAllowlist ?? []);
@@ -115,19 +114,21 @@ export async function spawnWorker(
   // Register worker in DB before spawning
   let seqCounter = 0;
 
-  const batcher = new AnsiChunkBatcher(async (chunk: Uint8Array) => {
-    // Persist to SQLite
-    try {
-      const seq = seqCounter++;
-      await ptyChunksRepo.append({
-        workerId,
-        seq,
-        ts: Date.now(),
-        bytes: Buffer.from(chunk),
-      });
-    } catch {
-      // Best effort — don't crash the PTY on DB write error
-    }
+  const batcher = new AnsiChunkBatcher({
+    onFlush: async (chunk: Uint8Array) => {
+      // Persist to SQLite
+      try {
+        const seq = seqCounter++;
+        await ptyChunksRepo.append({
+          workerId,
+          seq,
+          ts: Date.now(),
+          bytes: Buffer.from(chunk),
+        });
+      } catch {
+        // Best effort — don't crash the PTY on DB write error
+      }
+    },
   });
 
   const pty = createPty({
@@ -253,7 +254,14 @@ export function resizeWorker(id: string, cols: number, rows: number): void {
   }
 }
 
-export function listWorkers(): Array<{ id: string; pid: number; state: string; cli: string; cwd: string; startedAt: number }> {
+export function listWorkers(): Array<{
+  id: string;
+  pid: number;
+  state: string;
+  cli: string;
+  cwd: string;
+  startedAt: number;
+}> {
   return Array.from(workerRegistry.values()).map((w) => ({
     id: w.id,
     pid: w.pid,
