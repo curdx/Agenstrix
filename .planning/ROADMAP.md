@@ -31,8 +31,8 @@
   4. 用户按 Ctrl+C / 关闭进程 → 后端 `claude` 及其子进程组一起被杀（5s SIGTERM → SIGKILL），不留孤儿；下次启动 `agenstrix doctor --reap` 能识别历史孤儿
   5. 启动时跑 self-test：检测 `which claude`、`which git`、SQLite 读写、默认端口；缺了任何一项给具体修复指令（含 brew / npm 命令）
   6. 在 macOS、Linux、Windows 10 1809+ 三平台 CI 上都能跑通烟雾测试（Windows ConPTY 通路确认；路径短名转换工作）
-**Plans:** 6 plans
-  - [ ] 01-01-PLAN.md — Walking Skeleton: scaffold + DB + bus + PTY + Hono + chat shell + echo placeholder (Wave 1)
+**Plans:** 1/6 plans executed
+  - [x] 01-01-PLAN.md — Walking Skeleton: scaffold + DB + bus + PTY + Hono + chat shell + echo placeholder (Wave 1)
   - [ ] 01-02-PLAN.md — Real claude PTY bridge + ANSI splitter + WS hardening (Wave 2)
   - [ ] 01-03-PLAN.md — DB durability + backups + WAL PASSIVE + replay correctness (Wave 2)
   - [ ] 01-04-PLAN.md — Kill-group + running.json + doctor --reap + git lock scanner + WORKTREE-CWD-01 (Wave 3)
@@ -131,7 +131,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. First PTY Demo | 0/6 | Planned | - |
+| 1. First PTY Demo | 1/6 | In Progress|  |
 | 2. Smart Workspace Demo | 0/? | Not started | - |
 | 3. Master + Worker Demo | 0/? | Not started | - |
 | 4. Topology + Multi-Worker Demo | 0/? | Not started | - |
