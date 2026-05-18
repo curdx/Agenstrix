@@ -1609,22 +1609,25 @@ None beyond `CLAUDE.md` (greenfield project).
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Q1: Does `Bun.spawn` with `terminal:` automatically set `detached: true` (PGID isolation)?**
    - What we know: STACK.md says use `detached: true`. The Bun.Terminal blog post doesn't mention it explicitly. The PtyHandle design assumes pgid = pid.
    - What's unclear: Whether `terminal:` option implies session isolation.
    - Recommendation: Write a unit test asserting `getpgid(proc.pid) === proc.pid` on POSIX immediately in Wave 0. If false, add `detached: true` explicitly.
+   - **Resolution:** Resolved by Plan 01-01 Task 2 Step 6 (`detached: true` written defensively into `src-bun/pty/bun-terminal.ts`) + Plan 01-04 Task 1 Step 4 (smoke test asserts `process.pgid === process.pid` for the child PID via `ps -o pgid= -p <pid>`). POSIX-only — Windows ConPTY auto-cascades via `ClosePseudoConsole`.
 
 2. **Q2: Is `bun-pty@0.4.8` API exactly `spawn(argv, {cols, rows, cwd, env}): { pid, write, resize, kill, on("data", cb) }`?**
    - What we know: Package exists, has Rust/FFI backing, 20+ releases, 1 year old.
    - What's unclear: Exact constructor signature vs `node-pty` API parity.
    - Recommendation: Read bun-pty's TypeScript declarations before wiring the fallback. Adjust PtyHandle adapter if API differs.
+   - **Resolution:** Resolved as ASSUMED for v1. Plan 01-01 Task 2 Step 7 wires the fallback to throw `Error('bun-pty fallback not yet wired — verify API and uncomment')` so we don't silently regress to an untested code path. The static import remains so `bun --compile` bundles it. Real wiring (read bun-pty TS declarations, adapt PtyHandle, add unit test) is deferred to a future patch — invoked only when `AGENSTRIX_PTY_BACKEND=bun-pty` is set.
 
 3. **Q3: History replay gap race — can WS receive chunks between REST fetch completing and WS `onopen` firing?**
    - What we know: Pattern 4 buffers `pendingLive` during history load. The race window is minimal if WS opens first.
    - What's unclear: The exact order of `ws.onopen` vs `ws.onmessage` relative to the REST fetch.
    - Recommendation: Open WS first, buffer live chunks, then start REST fetch in `ws.onopen`. Already reflected in Pattern 4.
+   - **Resolution:** Resolved by Pattern 4 (buffer in `onopen`): client appends incoming chunks to a transient `pendingLive` buffer until the REST `/replay` response is received, then flushes the buffer into xterm. Implemented in Plan 01-01 Task 3 (`WorkerTerminal.tsx`).
 
 ---
 
